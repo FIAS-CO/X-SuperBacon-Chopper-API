@@ -84,7 +84,7 @@ app.get('/api/check', async (c: Context) => {
     const errorText = "Sorry, you are not authorized to see this status."
     const containsError = JSON.stringify(data).toLowerCase().includes(errorText.toLowerCase())
 
-    return c.json({ isUnavailable: containsError })
+    return c.json({ isUnavailable: containsError, oembedData: data })
 
   } catch (error) {
     console.error('Error:', error)
