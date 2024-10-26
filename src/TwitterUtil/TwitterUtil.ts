@@ -1,3 +1,85 @@
+import { StatusCode } from "hono/utils/http-status";
+
+type TweetStatus = {
+    code: StatusCode;
+    status: 'AVAILABLE' | 'FORBIDDEN' | 'NOT_FOUND' | 'UNKNOWN';
+    message: string;
+    oembedData?: any;
+};
+
+export async function checkTweetStatus(url: string): Promise<TweetStatus> {
+    const oembedUrl = new URL('https://publish.twitter.com/oembed')
+    oembedUrl.searchParams.append('url', url)
+    oembedUrl.searchParams.append('partner', '')
+    oembedUrl.searchParams.append('hide_thread', 'false')
+
+    try {
+        const response = await fetch(oembedUrl.toString())
+        console.log(response)
+        // 404の場合
+        if (response.status === 404) {
+            return {
+                code: 404 as StatusCode,
+                status: 'NOT_FOUND',
+                message: 'Tweet not found'
+            };
+        }
+
+        if (response.status === 403) {
+            return {
+                code: 403 as StatusCode,
+                status: 'FORBIDDEN',
+                message: 'you are not authorized to see this status.'
+            };
+        }
+
+        // その他のエラーレスポンスの場合
+        if (!response.ok) {
+            return {
+                code: response.status as StatusCode,
+                status: 'UNKNOWN',
+                message: `Tweet not available (${response.status} ${response.statusText})`
+            };
+        }
+
+        const data = await response.json()
+        const responseStr = JSON.stringify(data).toLowerCase()
+
+        // アクセス制限されているケース たぶんいらない
+        if (responseStr.includes("sorry, you are not authorized to see this status")) {
+            return {
+                code: 403 as StatusCode,
+                status: 'FORBIDDEN',
+                message: 'This tweet is not available'
+            };
+        }
+
+        // 正常なケース
+        if (data.html) {
+            return {
+                code: 200 as StatusCode,
+                status: 'AVAILABLE',
+                message: 'Tweet is available',
+                oembedData: data
+            };
+        }
+
+        // その他の不明なケース
+        return {
+            code: 520 as StatusCode,
+            status: 'UNKNOWN',
+            message: 'Unable to check tweet status'
+        };
+
+    } catch (error) {
+        return {
+            code: 500 as StatusCode,
+            status: 'UNKNOWN',
+            message: 'Failed to check tweet status'
+        };
+    }
+}
+
 // Edgeのような User-Agent を設定
 const EDGE_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0',

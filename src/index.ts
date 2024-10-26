@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Context } from 'hono'
-import { fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml } from './TwitterUtil/TwitterUtil'
+import { fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml, checkTweetStatus } from './TwitterUtil/TwitterUtil'
 
 // 環境変数の型定義
 type Bindings = {
@@ -39,6 +39,8 @@ async function fetchOembedData(url: string) {
   oembedUrl.searchParams.append('hide_thread', 'false')
 
   const response = await fetch(oembedUrl.toString())
+  console.log("aaaaaa")
+  console.log(response)
   return await response.json()
 }
 
@@ -69,27 +71,24 @@ app.get('/api/oembed', async (c: Context) => {
 app.get('/api/check', async (c: Context) => {
   try {
     const inputUrl = c.req.query('url')
-
     if (!inputUrl) {
       return c.json({ error: 'URL parameter is required' }, 400)
     }
 
-    // URLを展開（t.coの場合のみ）
     const targetUrl = inputUrl.includes('t.co')
       ? await expandUrl(inputUrl)
       : inputUrl
 
-    const data = await fetchOembedData(targetUrl)
-
-    // エラーメッセージの確認
-    const errorText = "Sorry, you are not authorized to see this status."
-    const containsError = JSON.stringify(data).toLowerCase().includes(errorText.toLowerCase())
-
-    return c.json({ isUnavailable: containsError, oembedData: data })
+    const statusResult = await checkTweetStatus(targetUrl)
+    return c.json(statusResult, statusResult.code)
 
   } catch (error) {
     console.error('Error:', error)
-    return c.json({ error: 'Internal server error' }, 500)
+    return c.json({
+      code: 500,
+      status: 'UNKNOWN',
+      message: 'Internal server error'
+    }, 500)
   }
 })
 
