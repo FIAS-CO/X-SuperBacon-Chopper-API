@@ -2,14 +2,45 @@ import { StatusCode } from "hono/utils/http-status";
 
 type TweetStatus = {
     code: StatusCode;
-    status: 'AVAILABLE' | 'FORBIDDEN' | 'NOT_FOUND' | 'UNKNOWN';
+    status: 'AVAILABLE' | 'FORBIDDEN' | 'NOT_FOUND' | 'UNKNOWN' | 'INVALID_URL';
     message: string;
     oembedData?: any;
 };
 
+// URLが正しい形式かチェックする関数
+function isValidTweetUrl(url: string): boolean {
+    try {
+        const parsedUrl = new URL(url);
+        // ホストがx.comまたはtwitter.comであることを確認
+        if (parsedUrl.hostname !== 'x.com' && parsedUrl.hostname !== 'twitter.com') {
+            return false;
+        }
+
+        // パスが/userId/status/tweetIdの形式であることを確認
+        const pathParts = parsedUrl.pathname.split('/').filter(part => part !== '');
+        return pathParts.length >= 3 && pathParts[1] === 'status';
+    } catch {
+        return false;
+    }
+}
+
+function cleanPhotoUrl(url: string): string {
+    return url.replace(/\/photo\/\d+\/?$/, '');
+}
+
 export async function checkTweetStatus(url: string): Promise<TweetStatus> {
+    if (!isValidTweetUrl(url)) {
+        return {
+            code: 400 as StatusCode,
+            status: 'INVALID_URL',
+            message: 'Invalid tweet URL format. URL must be in the format: https://x.com/userId/status/tweetId or https://twitter.com/userId/status/tweetId'
+        };
+    }
+
+    const cleanedUrl = cleanPhotoUrl(url);
+
     const oembedUrl = new URL('https://publish.twitter.com/oembed')
-    oembedUrl.searchParams.append('url', url)
+    oembedUrl.searchParams.append('url', cleanedUrl)
     oembedUrl.searchParams.append('partner', '')
     oembedUrl.searchParams.append('hide_thread', 'false')
 
