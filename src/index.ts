@@ -4,6 +4,7 @@ import { cors } from 'hono/cors'
 import type { Context } from 'hono'
 import { fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml, checkTweetStatus } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
+import { expandUrl } from './UrlUtil'
 
 // 環境変数の型定義
 type Bindings = {
@@ -17,20 +18,6 @@ app.use('/*', cors())
 
 // Health check endpoint
 app.get('/', (c: Context) => c.json({ status: 'ok' }))
-
-// t.co URLを展開する関数
-async function expandUrl(shortUrl: string): Promise<string> {
-  try {
-    const response = await fetch(shortUrl, {
-      method: 'HEAD',
-      redirect: 'follow'
-    })
-    return response.url
-  } catch (error) {
-    console.error('URL expansion error:', error)
-    return shortUrl
-  }
-}
 
 // OEmbed APIを呼び出す関数
 async function fetchOembedData(url: string) {
@@ -108,7 +95,7 @@ app.get('/api/check', async (c: Context) => {
       ? await expandUrl(inputUrl)
       : inputUrl
 
-    const statusResult = await checkTweetStatus(targetUrl)
+    const statusResult = await checkTweetStatus(targetUrl, true)
     createCheckHistory(
       getUserName(targetUrl), inputUrl, statusResult.status, ''
     )

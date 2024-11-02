@@ -1,8 +1,9 @@
 import { StatusCode } from "hono/utils/http-status";
+import { expandUrl } from "../UrlUtil";
 
 type TweetStatus = {
     code: StatusCode;
-    status: 'AVAILABLE' | 'FORBIDDEN' | 'NOT_FOUND' | 'UNKNOWN' | 'INVALID_URL';
+    status: 'AVAILABLE' | 'FORBIDDEN' | 'NOT_FOUND' | 'UNKNOWN' | 'INVALID_URL' | 'QUATE_FORBIDDEN';
     message: string;
     oembedData?: any;
 };
@@ -28,7 +29,22 @@ function cleanPhotoUrl(url: string): string {
     return url.replace(/\/photo\/\d+\/?$/, '');
 }
 
-export async function checkTweetStatus(url: string): Promise<TweetStatus> {
+function extractTcoUrls(html: string): string[] {
+    // t.co URLを抽出する正規表現
+    const tcoUrlPattern = /https:\/\/t\.co\/[a-zA-Z0-9]+/g;
+
+    // 全てのマッチを取得
+    const matches = html.match(tcoUrlPattern);
+
+    if (!matches) {
+        return [];
+    }
+
+    // 重複を削除して返す
+    return [...new Set(matches)];
+}
+
+export async function checkTweetStatus(url: string, isRecursive: boolean): Promise<TweetStatus> {
     if (!isValidTweetUrl(url)) {
         return {
             code: 400 as StatusCode,
@@ -46,7 +62,6 @@ export async function checkTweetStatus(url: string): Promise<TweetStatus> {
 
     try {
         const response = await fetch(oembedUrl.toString())
-        console.log(response)
         // 404の場合
         if (response.status === 404) {
             return {
@@ -87,6 +102,27 @@ export async function checkTweetStatus(url: string): Promise<TweetStatus> {
 
         // 正常なケース
         if (data.html) {
+            if (isRecursive) {
+                const tcoUrlsInResponse = extractTcoUrls(data.html)
+                console.log(tcoUrlsInResponse)
+                const expandedUrls = await Promise.all(
+                    tcoUrlsInResponse.map(url => expandUrl(url))
+                );
+                console.log(expandedUrls)
+
+                for (const url of expandedUrls) {
+                    const result = await checkTweetStatus(url, false);
+                    if (result.status === 'FORBIDDEN') {
+                        return {
+                            code: 410 as StatusCode,
+                            status: 'QUATE_FORBIDDEN',
+                            message: 'Quoted tweet is FORBIDDEN',
+                            oembedData: data
+                        };
+                    }
+                }
+            }
+
             return {
                 code: 200 as StatusCode,
                 status: 'AVAILABLE',
