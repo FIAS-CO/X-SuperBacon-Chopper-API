@@ -112,6 +112,17 @@ app.get('/api/check', async (c: Context) => {
   }
 })
 
+// 利用可能性をチェックするAPIエンドポイント
+app.get('/api/get-history', async (c: Context) => {
+  try {
+    const history = await prisma.twitterCheck.findMany()
+    return c.json(history)
+  } catch (error) {
+    console.error(error)
+    return c.json({ error: 'Failed to fetch users' }, 500)
+  }
+})
+
 app.get('/api/extract-urls', async (c) => {
   try {
     const targetUrl = c.req.query('url')
