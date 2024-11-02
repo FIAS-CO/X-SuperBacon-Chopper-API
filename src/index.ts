@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Context } from 'hono'
 import { fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml, checkTweetStatus } from './TwitterUtil/TwitterUtil'
+import prisma from './db'
 
 // 環境変数の型定義
 type Bindings = {
@@ -67,6 +68,34 @@ app.get('/api/oembed', async (c: Context) => {
   }
 })
 
+async function createCheckHistory(
+  username: string,
+  url: string,
+  result: string,
+  ip: string
+) {
+  return await prisma.twitterCheck.create({
+    data: {
+      username: username,
+      url: url,
+      result: result,
+      ip: ip
+    }
+  })
+}
+
+function getUserName(url: string): string {
+  try {
+    const parsedUrl = new URL(url);
+
+    // パスが/userId/status/tweetIdの形式であることを確認
+    const pathParts = parsedUrl.pathname.split('/').filter(part => part !== '');
+    return pathParts[0];
+  } catch {
+    return "getUserName Error";
+  }
+}
+
 // 利用可能性をチェックするAPIエンドポイント
 app.get('/api/check', async (c: Context) => {
   try {
@@ -80,6 +109,10 @@ app.get('/api/check', async (c: Context) => {
       : inputUrl
 
     const statusResult = await checkTweetStatus(targetUrl)
+    createCheckHistory(
+      getUserName(targetUrl), inputUrl, statusResult.status, ''
+    )
+
     return c.json(statusResult, statusResult.code)
 
   } catch (error) {
