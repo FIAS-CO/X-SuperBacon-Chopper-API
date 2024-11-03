@@ -113,7 +113,7 @@ app.get('/api/check', async (c: Context) => {
 })
 
 // 利用可能性をチェックするAPIエンドポイント
-app.get('/api/get-history', async (c: Context) => {
+app.get('/api/get-history-2n7b4x9k5m1p3v8h6j4w', async (c: Context) => {
   try {
     const history = await prisma.twitterCheck.findMany()
     return c.json(history)
