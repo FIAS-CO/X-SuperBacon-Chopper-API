@@ -115,8 +115,30 @@ app.get('/api/check', async (c: Context) => {
 // 利用可能性をチェックするAPIエンドポイント
 app.get('/api/get-history-2n7b4x9k5m1p3v8h6j4w', async (c: Context) => {
   try {
-    const history = await prisma.twitterCheck.findMany()
-    return c.json(history)
+    const history = await prisma.twitterCheck.findMany({
+      orderBy: {
+        id: 'desc',
+      }
+    })
+
+    // UTCから日本時間に変換
+    const historyWithJST = history.map(record => {
+      const date = new Date(record.date)
+      return {
+        ...record,
+        date: date.toLocaleString('ja-JP', {
+          timeZone: 'Asia/Tokyo',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }) + ' JST'
+      }
+    })
+
+    return c.json(historyWithJST)
   } catch (error) {
     console.error(error)
     return c.json({ error: 'Failed to fetch users' }, 500)
