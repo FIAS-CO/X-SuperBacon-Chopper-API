@@ -25,7 +25,36 @@ interface Tweet {
                                 }
                             }
                         }
-                    }
+                    },
+                    legacy: {
+                        retweeted_status_result?: {
+                            result: any;
+                        };
+                        entities: {
+                            media?: {
+                                type: string;
+                                media_url_https: string;
+                                video_info?: {
+                                    variants: {
+                                        content_type: string;
+                                        url: string;
+                                    }[];
+                                };
+                            }[];
+                        };
+                        extended_entities?: {
+                            media: {
+                                type: string;
+                                media_url_https: string;
+                                video_info?: {
+                                    variants: {
+                                        content_type: string;
+                                        url: string;
+                                    }[];
+                                };
+                            }[];
+                        };
+                    };
                 }
             }
         }
@@ -73,33 +102,77 @@ export function extractCursor(data: any, isAfterCursor: boolean = false): string
     }
 }
 
-export async function getTimelineUrls(authToken: string, userId: string): Promise<string[]> {
-
-    const timelineResponse = await getResponse(authToken, userId)
+export interface TweetInfo {
+    url: string;           // ツイートのURL
+    isRetweet: boolean;    // リツイートかどうか
+    hasMedia: boolean;     // 画像/動画/GIFを含むかどうか
+}
+/**
+ * タイムラインからツイート情報を抽出
+ */
+export async function getTimelineUrls(authToken: string, userId: string): Promise<TweetInfo[]> {
+    const timelineResponse = await getResponse(authToken, userId);
 
     if (!timelineResponse.ok) {
         throw new Error(`Twitter API returned status: ${timelineResponse.status}`);
     }
 
     const timelineData = await timelineResponse.json();
-    const cursor = extractCursor(timelineData)
+    const cursor = extractCursor(timelineData);
 
-    // Extract URLs from timeline data
-    const urls = extractTweetUrls(timelineData);
+    // 1回目の取得結果を処理
+    const urls = extractTweetInfos(timelineData);
 
-    console.log(urls)
-
-    const timelineResponseSecond = await getResponse(authToken, userId, cursor)
+    // 2回目の取得（カーソルあり）
+    const timelineResponseSecond = await getResponse(authToken, userId, cursor);
 
     if (!timelineResponseSecond.ok) {
         throw new Error(`Twitter API returned status in second: ${timelineResponse.status}`);
     }
 
     const timelineDataSecond = await timelineResponseSecond.json();
-    const urlsSecond = extractTweetUrls(timelineDataSecond, true);
-    console.log(urlsSecond)
+    const urlsSecond = extractTweetInfos(timelineDataSecond, true);
 
-    return [...urls, ...urlsSecond]
+    // 両方の結果を結合して返す
+    return [...urls, ...urlsSecond];
+}
+
+/**
+ * タイムラインデータからツイート情報を抽出する補助関数
+ */
+function extractTweetInfos(data: any, isAfterCursor: boolean = false): TweetInfo[] {
+    const index = isAfterCursor ? 1 : 2;
+    try {
+        const entries = data?.data?.user?.result?.timeline_v2?.timeline?.instructions?.[index]?.entries || [];
+        const tweetInfos: TweetInfo[] = [];
+
+        for (const entry of entries) {
+            // TimelineTimelineItemのエントリーのみを処理
+            if (entry?.content?.entryType === "TimelineTimelineItem" ||
+                entry?.content?.entryType === "TimelineTimelineModule") {
+                const tweet = entry as Tweet;
+                const tweetResult = tweet?.content?.itemContent?.tweet_results?.result;
+
+                if (tweetResult) {
+                    const screenName = tweetResult.core.user_results.result.legacy.screen_name;
+                    const tweetId = tweetResult.rest_id;
+                    const url = `https://x.com/${screenName}/status/${tweetId}`;
+
+                    // 追加情報を取得
+                    tweetInfos.push({
+                        url: url,
+                        isRetweet: isRetweet(tweet),
+                        hasMedia: hasPicOrVideo(tweet)
+                    });
+                }
+            }
+        }
+
+        return tweetInfos;
+    } catch (error) {
+        console.error('Error extracting tweet infos:', error);
+        return [];
+    }
 }
 
 async function getResponse(authToken: string, userId: string, cursor: string = ""): Promise<Response> {
@@ -161,4 +234,26 @@ async function getResponse(authToken: string, userId: string, cursor: string = "
     );
 
     return timelineResponse
+}
+
+/**
+ * ツイートが画像、動画、GIFのいずれかのメディアを含むかどうかを判定
+ */
+export function hasPicOrVideo(tweet: Tweet): boolean {
+    const legacy = tweet.content.itemContent.tweet_results.result.legacy;
+    if (!legacy) return false;
+
+    // メディアを取得（extended_entitiesを優先）
+    const media = legacy.extended_entities?.media || legacy.entities?.media || [];
+    const mediaInRt = legacy.retweeted_status_result?.result?.legacy?.extended_entities?.media || [];
+
+    // メディアが存在し、かつphoto/video/animated_gifのいずれかを含む
+    return [...media, ...mediaInRt].some(m => ['photo', 'video', 'animated_gif'].includes(m.type));
+}
+
+/**
+ * ツイートがリツイートかどうかを判定
+ */
+export function isRetweet(tweet: Tweet): boolean {
+    return tweet.content.itemContent.tweet_results.result.legacy?.retweeted_status_result !== undefined;
 }

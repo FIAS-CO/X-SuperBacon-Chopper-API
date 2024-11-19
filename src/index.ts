@@ -271,7 +271,6 @@ app.get('/api/usertweets', async (c) => {
     const variables = {
       userId: userId,
       count: 40,
-      cursor: 'DAABCgABGcvdSpV___AKAAIZyYBlGJqx0QgAAwAAAAIAAA',
       includePromotedContent: true,
       withQuickPromoteEligibilityTweetFields: true,
       withVoice: true,
