@@ -5,7 +5,8 @@ import type { Context } from 'hono'
 import { fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml, checkTweetStatus } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
-import { extractCursor, extractTweetUrls, generateRandomHexString, getTimelineUrls } from './FunctionUtil'
+import { generateRandomHexString, getTimelineUrls } from './FunctionUtil'
+import { serverDecryption } from './util/ServerDecryption'
 
 // 環境変数の型定義
 type Bindings = {
@@ -88,6 +89,9 @@ function getUserName(url: string): string {
 app.get('/api/check', async (c: Context) => {
   try {
     const inputUrl = c.req.query('url')
+    const encryptedIp = c.req.query('key') // ユーザーにバレないよう偽装
+    const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+
     if (!inputUrl) {
       return c.json({ error: 'URL parameter is required' }, 400)
     }
@@ -98,7 +102,7 @@ app.get('/api/check', async (c: Context) => {
 
     const statusResult = await checkTweetStatus(targetUrl, true)
     createCheckHistory(
-      getUserName(targetUrl), inputUrl, statusResult.status, ''
+      getUserName(targetUrl), inputUrl, statusResult.status, ip || ''
     )
 
     return c.json(statusResult, statusResult.code)
