@@ -90,7 +90,9 @@ app.get('/api/check', async (c: Context) => {
   try {
     const inputUrl = c.req.query('url')
     const encryptedIp = c.req.query('key') // ユーザーにバレないよう偽装
+    console.log(`encId:${encryptedIp}`)
     const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+    console.log(`ip:${ip}`)
 
     if (!inputUrl) {
       return c.json({ error: 'URL parameter is required' }, 400)
