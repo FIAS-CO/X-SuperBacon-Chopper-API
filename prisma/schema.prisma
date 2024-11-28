@@ -19,6 +19,8 @@ model TwitterCheck {
   url      String
   result   String   // 'AVAILABLE' | 'FORBIDDEN' | 'NOT_FOUND' | 'UNKNOWN'
   ip       String
+  sessionId String?
+  tweetDate DateTime?
   date     DateTime @default(now())
 
   @@index([username])

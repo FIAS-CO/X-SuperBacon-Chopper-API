@@ -61,14 +61,16 @@ async function createCheckHistory(
   username: string,
   url: string,
   result: string,
-  ip: string
+  ip: string,
+  sessionId: string
 ) {
   return await prisma.twitterCheck.create({
     data: {
       username: username,
       url: url,
       result: result,
-      ip: ip
+      ip: ip,
+      sessionId: sessionId
     }
   })
 }
@@ -114,6 +116,75 @@ app.get('/api/check', async (c: Context) => {
       status: 'UNKNOWN',
       message: 'Internal server error'
     }, 500)
+  }
+})
+
+app.post('/api/check-batch', async (c: Context) => {
+  try {
+    const body = await c.req.json();
+    const urls: string[] = body.urls;
+    const encryptedIp = body.key; // ユーザーにバレないよう偽装
+    const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+
+    if (!urls || !Array.isArray(urls)) {
+      return c.json({ error: 'URLs array is required in request body' }, 400);
+    }
+
+    const sessionId = generateRandomHexString(16);
+
+    // Process URLs in parallel using Promise.all
+    const results = await Promise.all(
+      urls.map(async (inputUrl) => {
+        try {
+          if (!inputUrl) {
+            return {
+              code: 400,
+              status: 'INVALID_URL' as const,
+              message: 'URL parameter is required'
+            };
+          }
+
+          // URLを展開（t.coの場合のみ）
+          const targetUrl = inputUrl.includes('t.co')
+            ? await expandUrl(inputUrl)
+            : inputUrl;
+
+          const statusResult = await checkTweetStatus(targetUrl, true);
+
+          // チェック履歴を作成（非同期でバックグラウンド処理）
+          createCheckHistory(
+            getUserName(targetUrl),
+            inputUrl,
+            statusResult.status,
+            ip || ''
+          ).catch(error => {
+            console.error('Error creating check history:', error);
+          });
+
+          return {
+            url: inputUrl,
+            ...statusResult
+          };
+        } catch (error) {
+          console.error('Error checking URL:', inputUrl, error);
+          return {
+            url: inputUrl,
+            code: 500,
+            status: 'UNKNOWN' as const,
+            message: 'Internal server error'
+          };
+        }
+      })
+    );
+
+    return c.json(results);
+
+  } catch (error) {
+    console.error('Error:', error);
+    return c.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
   }
 })
 
