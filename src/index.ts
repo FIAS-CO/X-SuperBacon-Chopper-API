@@ -87,38 +87,6 @@ function getUserName(url: string): string {
   }
 }
 
-// 利用可能性をチェックするAPIエンドポイント
-app.get('/api/check', async (c: Context) => {
-  try {
-    const inputUrl = c.req.query('url')
-    const encryptedIp = c.req.query('key') // ユーザーにバレないよう偽装
-    const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
-
-    if (!inputUrl) {
-      return c.json({ error: 'URL parameter is required' }, 400)
-    }
-
-    const targetUrl = inputUrl.includes('t.co')
-      ? await expandUrl(inputUrl)
-      : inputUrl
-
-    const statusResult = await checkTweetStatus(targetUrl, true)
-    createCheckHistory(
-      getUserName(targetUrl), inputUrl, statusResult.status, ip || ''
-    )
-
-    return c.json(statusResult, statusResult.code)
-
-  } catch (error) {
-    console.error('Error:', error)
-    return c.json({
-      code: 500,
-      status: 'UNKNOWN',
-      message: 'Internal server error'
-    }, 500)
-  }
-})
-
 app.post('/api/check-batch', async (c: Context) => {
   try {
     const body = await c.req.json();
@@ -156,7 +124,8 @@ app.post('/api/check-batch', async (c: Context) => {
             getUserName(targetUrl),
             inputUrl,
             statusResult.status,
-            ip || ''
+            ip || '',
+            sessionId
           ).catch(error => {
             console.error('Error creating check history:', error);
           });
@@ -198,7 +167,7 @@ app.get('/api/get-history-2n7b4x9k5m1p3v8h6j4w', async (c: Context) => {
     })
 
     // UTCから日本時間に変換
-    const historyWithJST = history.map(record => {
+    const historyWithJST = history.map(({ tweetDate, ...record }) => {
       const date = new Date(record.date)
       return {
         ...record,
