@@ -186,7 +186,7 @@ app.get('/api/get-history-2n7b4x9k5m1p3v8h6j4w', async (c: Context) => {
     // UTCから日本時間に変換
     const historyWithJST = history.map(({ ...record }) => {
       const date = toJST(new Date(record.date))
-      const tweetDate = record.tweetDate ? new Date(record.tweetDate) : ""
+      const tweetDate = record.tweetDate ? toJST(new Date(record.tweetDate)) : ""
       return {
         ...record,
         date: date,
