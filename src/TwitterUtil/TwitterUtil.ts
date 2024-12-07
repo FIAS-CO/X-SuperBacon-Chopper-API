@@ -393,7 +393,7 @@ export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
     );
 
     if (!response.ok) {
-        throw new Error(`Twitter API returned status: ${response.status}`);
+        return "1970/01/01 00:00:00"
     }
 
     const data = await response.json();
