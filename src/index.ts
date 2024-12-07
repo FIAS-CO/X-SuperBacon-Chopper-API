@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Context } from 'hono'
-import { fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml, checkTweetStatus } from './TwitterUtil/TwitterUtil'
+import { fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml, checkTweetStatus, extractTweetId, fetchTweetCreatedAt } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
 import { generateRandomHexString, getTimelineUrls } from './FunctionUtil'
@@ -62,7 +62,8 @@ async function createCheckHistory(
   url: string,
   result: string,
   ip: string,
-  sessionId: string
+  sessionId: string,
+  tweetDate: string
 ) {
   return await prisma.twitterCheck.create({
     data: {
@@ -70,7 +71,8 @@ async function createCheckHistory(
       url: url,
       result: result,
       ip: ip,
-      sessionId: sessionId
+      sessionId: sessionId,
+      tweetDate: new Date(tweetDate)
     }
   })
 }
@@ -119,13 +121,16 @@ app.post('/api/check-batch', async (c: Context) => {
 
           const statusResult = await checkTweetStatus(targetUrl, true);
 
+          const tweetDate = await fetchTweetCreatedAt(targetUrl)
+
           // チェック履歴を作成（非同期でバックグラウンド処理）
           createCheckHistory(
             getUserName(targetUrl),
             inputUrl,
             statusResult.status,
             ip || '',
-            sessionId
+            sessionId,
+            tweetDate
           ).catch(error => {
             console.error('Error creating check history:', error);
           });
