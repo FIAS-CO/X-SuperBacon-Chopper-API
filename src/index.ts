@@ -123,7 +123,7 @@ app.post('/api/check-batch', async (c: Context) => {
           const statusResult = await checkTweetStatus(targetUrl, true);
 
           const tweetDate = await fetchTweetCreatedAt(targetUrl)
-          console.log(`date:${tweetDate}`)
+
           // チェック履歴を作成（非同期でバックグラウンド処理）
           createCheckHistory(
             getUserName(targetUrl),
@@ -152,7 +152,10 @@ app.post('/api/check-batch', async (c: Context) => {
       })
     );
 
-    return c.json(results);
+    return c.json({
+      results: results,
+      sessionId: sessionId
+    });
 
   } catch (error) {
     console.error('Error:', error);
