@@ -7,6 +7,7 @@ import prisma from './db'
 import { expandUrl } from './UrlUtil'
 import { generateRandomHexString, getTimelineUrls } from './FunctionUtil'
 import { serverDecryption } from './util/ServerDecryption'
+import { CheckHistoryService } from './service/CheckHistoryService'
 
 // 環境変数の型定義
 type Bindings = {
@@ -122,7 +123,7 @@ app.post('/api/check-batch', async (c: Context) => {
           const statusResult = await checkTweetStatus(targetUrl, true);
 
           const tweetDate = await fetchTweetCreatedAt(targetUrl)
-
+          console.log(`date:${tweetDate}`)
           // チェック履歴を作成（非同期でバックグラウンド処理）
           createCheckHistory(
             getUserName(targetUrl),
@@ -195,6 +196,21 @@ app.get('/api/get-history-2n7b4x9k5m1p3v8h6j4w', async (c: Context) => {
     })
 
     return c.json(historyWithJST)
+  } catch (error) {
+    console.error(error)
+    return c.json({ error: 'Failed to fetch users' }, 500)
+  }
+})
+
+app.get('/api/get-history-by-session-id', async (c: Context) => {
+  try {
+    const sessionId = c.req.query('id')
+    if (!sessionId) {
+      return c.json({ error: 'URL parameter is required' }, 400)
+    }
+    const historyList = await new CheckHistoryService().getHistoryById(sessionId);
+    console.log(historyList)
+    return c.json(historyList)
   } catch (error) {
     console.error(error)
     return c.json({ error: 'Failed to fetch users' }, 500)

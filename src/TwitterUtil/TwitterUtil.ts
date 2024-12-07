@@ -1,10 +1,11 @@
 import { StatusCode } from "hono/utils/http-status";
 import { expandUrl } from "../UrlUtil";
 import { generateRandomHexString } from "../FunctionUtil";
+import { CheckStatus } from "../types/Types";
 
 type TweetStatus = {
     code: StatusCode;
-    status: 'AVAILABLE' | 'FORBIDDEN' | 'NOT_FOUND' | 'UNKNOWN' | 'INVALID_URL' | 'QUATE_FORBIDDEN';
+    status: CheckStatus;
     message: string;
     oembedData?: any;
 };
@@ -316,6 +317,7 @@ function getTweetCreatedAt(data: any): string {
     try {
         const created_at = data?.data?.threaded_conversation_with_injections_v2?.instructions?.[0]
             ?.entries?.[0]?.content?.itemContent?.tweet_results?.result?.legacy?.created_at;
+        console.log(created_at)
         return created_at || "1970/01/01 00:00:00";
     } catch (error) {
         console.error('Error extracting tweet date:', error);
