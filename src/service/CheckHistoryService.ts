@@ -9,13 +9,12 @@ interface CheckResult {
 }
 
 export class CheckHistoryService {
-    async getHistoryById(sessionId: string): Promise<CheckResult[] | null> {
+    async getHistoryById(sessionId: string): Promise<{ results: CheckResult[]; timestamp: string; }> {
         try {
             const checkResults = await prisma.twitterCheck.findMany({ where: { sessionId: sessionId } });
 
             if (checkResults.length === 0) {
-                console.log(`no data found by sessionID ${sessionId}`)
-                return [];
+                return { results: [], timestamp: '' };
             }
 
             const isCheckStatus = (value: any): value is CheckStatus => {
@@ -27,8 +26,20 @@ export class CheckHistoryService {
                 checkStatus: isCheckStatus(record.result) ? record.result : 'UNKNOWN'
             }));
 
-            console.log(checkResultsData)
-            return checkResultsData
+            // セッション内の最初のチェック時刻を取得
+            const timestamp = checkResults[0].date.toLocaleString('ja-JP', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            return {
+                results: checkResultsData,
+                timestamp
+            };
         } catch (error) {
             console.error(`Error to get check history of sessionID ${sessionId}:`, error);
             throw error;
