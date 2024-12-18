@@ -279,6 +279,7 @@ app.get('/api/check-by-user', async (c: Context) => {
       })
     }
 
+    const userScreenName = user.result.legacy.screen_name; // 大文字・小文字などの表記を合わせるため取得した値を使用
     const searchData = await fetchSearchTimelineAsync(screenName)
     const searchTimeline = searchData.data?.search_by_raw_query?.search_timeline;
 
@@ -288,7 +289,7 @@ app.get('/api/check-by-user', async (c: Context) => {
         if (!instruction.entries) continue
         for (const entry of instruction.entries) {
           if (entry.entryId.startsWith('tweet-')) {
-            if (entry.content?.itemContent?.tweet_results?.result?.core?.user_results?.result?.legacy?.screen_name === screenName) {
+            if (entry.content?.itemContent?.tweet_results?.result?.core?.user_results?.result?.legacy?.screen_name === userScreenName) {
               searchBanFlag = false
               break
             }
@@ -303,7 +304,7 @@ app.get('/api/check-by-user', async (c: Context) => {
 
     const searchSuggestionUsers = await fetchSearchSuggestionAsync(screenName, userNameText)
     const searchSuggestionBanFlag = !searchSuggestionUsers.some(
-      (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === screenName
+      (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === userScreenName
     )
 
     return c.json({
@@ -315,6 +316,33 @@ app.get('/api/check-by-user', async (c: Context) => {
       user: user.result,
     })
 
+  } catch (error) {
+    console.error('Error:', error)
+    return c.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+})
+
+app.get('/api/searchtimeline', async (c: Context) => {
+  try {
+    const authToken = process.env.AUTH_TOKEN;
+    if (!authToken) {
+      throw new Error("AUTH_TOKEN is not defined");
+    }
+
+    const screenName = c.req.query('screen_name');
+
+    if (!screenName) {
+      return c.json({ error: 'screen_name parameter is required' }, 400);
+    }
+
+    const searchData = await fetchSearchTimelineAsync(screenName)
+    const searchTimeline = searchData.data?.search_by_raw_query?.search_timeline;
+    return c.json({
+      searchTimeline
+    })
   } catch (error) {
     console.error('Error:', error)
     return c.json({
