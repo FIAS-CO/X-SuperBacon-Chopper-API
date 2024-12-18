@@ -2,7 +2,10 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Context } from 'hono'
-import { fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml, checkTweetStatus, extractTweetId, fetchTweetCreatedAt } from './TwitterUtil/TwitterUtil'
+import {
+  fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml, checkTweetStatus, fetchTweetCreatedAt,
+  fetchUserByScreenNameAsync, fetchSearchTimelineAsync, fetchSearchSuggestionAsync
+} from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
 import { generateRandomHexString, getTimelineUrls } from './FunctionUtil'
@@ -219,6 +222,111 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
     return c.json({ error: 'Failed to fetch users' }, 500)
   }
 })
+
+interface TwitterCheckResult {
+  not_found: boolean;
+  suspend: boolean;
+  protect: boolean;
+  no_tweet: boolean;
+  search_ban: boolean;
+  search_suggestion_ban: boolean;
+  no_reply: boolean;
+  ghost_ban: boolean;
+  reply_deboosting: boolean;
+  user: any | null;
+}
+
+app.get('/api/check-by-user', async (c: Context) => {
+  try {
+    const authToken = process.env.AUTH_TOKEN;
+    if (!authToken) {
+      throw new Error("AUTH_TOKEN is not defined");
+    }
+
+    const screenName = c.req.query('screen_name');
+
+    if (!screenName) {
+      return c.json({ error: 'screen_name parameter is required' }, 400);
+    }
+
+    const user = await fetchUserByScreenNameAsync(screenName)
+
+    var result: TwitterCheckResult = {
+      not_found: false,
+      suspend: false,
+      protect: false,
+      no_tweet: false,
+      search_ban: false,
+      search_suggestion_ban: false,
+      no_reply: false,
+      ghost_ban: false,
+      reply_deboosting: false,
+      user: null,
+    }
+
+    if (!user) {
+      return c.json({
+        ...result,
+        not_found: true,
+      })
+    }
+
+    if (user.result.__typename !== "User") {
+      return c.json({
+        ...result,
+        suspend: true,
+        user: user.result,
+      })
+    }
+
+    const searchData = await fetchSearchTimelineAsync(screenName)
+    const searchTimeline = searchData.data?.search_by_raw_query?.search_timeline;
+
+    let searchBanFlag = true
+    if (searchTimeline?.timeline?.instructions) {
+      for (const instruction of searchTimeline.timeline.instructions) {
+        if (!instruction.entries) continue
+        for (const entry of instruction.entries) {
+          if (entry.entryId.startsWith('tweet-')) {
+            if (entry.content?.itemContent?.tweet_results?.result?.core?.user_results?.result?.legacy?.screen_name === screenName) {
+              searchBanFlag = false
+              break
+            }
+          }
+        }
+        if (!searchBanFlag) break
+      }
+    }
+
+    // Search suggestion fetch
+    const userNameText = user.result.legacy.name
+
+    const searchSuggestionUsers = await fetchSearchSuggestionAsync(screenName, userNameText)
+    const searchSuggestionBanFlag = !searchSuggestionUsers.some(
+      (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === screenName
+    )
+
+    return c.json({
+      ...result,
+      protect: user.result.legacy.protected || false,
+      no_tweet: !user.result.legacy.statuses_count,
+      search_ban: searchBanFlag,
+      search_suggestion_ban: searchSuggestionBanFlag,
+      user: user.result,
+    })
+
+  } catch (error) {
+    console.error('Error:', error)
+    return c.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+})
+
+//---
+//以下テスト用
+//---
 
 app.get('/api/extract-urls', async (c) => {
   try {
