@@ -110,31 +110,42 @@ export interface TweetInfo {
 /**
  * タイムラインからツイート情報を抽出
  */
-export async function getTimelineUrls(authToken: string, userId: string): Promise<TweetInfo[]> {
-    const timelineResponse = await getResponse(authToken, userId);
-
-    if (!timelineResponse.ok) {
-        throw new Error(`Twitter API returned status: ${timelineResponse.status}`);
+export async function getTimelineUrls(userId: string): Promise<TweetInfo[]> {
+    const DESIRED_COUNT = 20;
+    const authToken = process.env.AUTH_TOKEN;
+    if (!authToken) {
+        throw new Error("AUTH_TOKEN is not defined");
     }
 
-    const timelineData = await timelineResponse.json();
-    const cursor = extractCursor(timelineData);
+    let allTweetInfos: TweetInfo[] = [];
+    let cursor: string = "";
+    let isAfterCursor = false;
 
-    // 1回目の取得結果を処理
-    const urls = extractTweetInfos(timelineData);
+    while (allTweetInfos.length < DESIRED_COUNT) {
+        // API呼び出し
+        const response = await getResponse(authToken, userId, cursor);
+        if (!response.ok) {
+            throw new Error(`Twitter API returned status: ${response.status}`);
+        }
 
-    // 2回目の取得（カーソルあり）
-    const timelineResponseSecond = await getResponse(authToken, userId, cursor);
+        const data = await response.json();
+        const newTweetInfos = extractTweetInfos(data, !!cursor);
 
-    if (!timelineResponseSecond.ok) {
-        throw new Error(`Twitter API returned status in second: ${timelineResponse.status}`);
+        // 新しいツイートがない場合は終了
+        if (newTweetInfos.length === 0) break;
+
+        allTweetInfos = [...allTweetInfos, ...newTweetInfos];
+
+        // 次のページのカーソルを取得
+        cursor = extractCursor(data, isAfterCursor);
+
+        isAfterCursor = true;
+        // カーソルがない場合は終了（最後のページに到達）
+        if (!cursor) break;
     }
 
-    const timelineDataSecond = await timelineResponseSecond.json();
-    const urlsSecond = extractTweetInfos(timelineDataSecond, true);
-
-    // 両方の結果を結合して返す
-    return [...urls, ...urlsSecond];
+    // 最大50件まで返す
+    return allTweetInfos.slice(0, DESIRED_COUNT);
 }
 
 /**
