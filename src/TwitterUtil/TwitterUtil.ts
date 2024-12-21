@@ -2,13 +2,175 @@ import { StatusCode } from "hono/utils/http-status";
 import { expandUrl } from "../UrlUtil";
 import { generateRandomHexString } from "../FunctionUtil";
 import { CheckStatus } from "../types/Types";
+import prisma from "../db";
 
-type TweetStatus = {
+interface CheckResult {
+    url: string;
+    code: number;
+    status: string;
+    message: string;
+    tweetDate?: string;
+}
+
+export async function batchCheckTweets(urls: string[], ip: string, sessionId: string): Promise<CheckResult[]> {
+    const BATCH_SIZE = 5;
+    const results = [];
+
+    // URLsを5個ずつの配列に分割
+    for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+        const batch = urls.slice(i, i + BATCH_SIZE);
+
+        // 各バッチを並列処理
+        const batchResults = await Promise.all(
+            batch.map(async (inputUrl) => {
+                try {
+                    if (!inputUrl) {
+                        return {
+                            code: 400,
+                            status: 'INVALID_URL' as const,
+                            message: 'URL parameter is required',
+                            url: inputUrl,
+                            tweetDate: ''
+                        };
+                    }
+
+                    const targetUrl = inputUrl.includes('t.co')
+                        ? await expandUrl(inputUrl)
+                        : inputUrl;
+
+                    const statusResult = await checkTweetStatus(targetUrl, true);
+                    const tweetDate = await fetchTweetCreatedAt(targetUrl);
+
+                    // 履歴作成は後でバッチ処理する
+                    return {
+                        url: inputUrl,
+                        tweetDate,
+                        ...statusResult
+                    };
+                } catch (error) {
+                    console.error('Error checking URL:', inputUrl, error);
+                    return {
+                        url: inputUrl,
+                        code: 500,
+                        status: 'UNKNOWN' as const,
+                        message: 'Internal server error',
+                        tweetDate: ''
+                    };
+                }
+            })
+        );
+
+        results.push(...batchResults);
+    }
+
+    // 履歴のバッチ作成（非同期で実行）
+    const histories = results.map(result => ({
+        username: getUserName(result.url),
+        url: result.url,
+        status: result.status,
+        ip: ip,
+        sessionId: sessionId,
+        tweetDate: result.tweetDate
+    }));
+
+    // DBへの書き込みは非同期で行う
+    Promise.all(
+        histories.map(history =>
+            createCheckHistory(
+                history.username,
+                history.url,
+                history.status,
+                history.ip,
+                history.sessionId,
+                history.tweetDate
+            )
+        )
+    ).catch(error => {
+        console.error('Error creating check histories:', error);
+    });
+
+    return results;
+}
+
+interface TweetStatus {
     code: StatusCode;
     status: CheckStatus;
     message: string;
     oembedData?: any;
-};
+}
+
+async function createCheckHistory(
+    username: string,
+    url: string,
+    result: string,
+    ip: string,
+    sessionId: string,
+    tweetDate: string
+) {
+    return await prisma.twitterCheck.create({
+        data: {
+            username: username,
+            url: url,
+            result: result,
+            ip: ip,
+            sessionId: sessionId,
+            tweetDate: new Date(tweetDate)
+        }
+    })
+}
+
+export async function fetchUserId(screenName: string) {
+    // First, get userId from screen_name using usertest endpoint
+    const searchParams = new URLSearchParams({
+        "variables": JSON.stringify({
+            "screen_name": screenName,
+            "withSafetyModeUserFields": true,
+        }),
+        "features": JSON.stringify({
+            "hidden_profile_likes_enabled": true,
+            "hidden_profile_subscriptions_enabled": true,
+            "responsive_web_graphql_exclude_directive_enabled": true,
+            "verified_phone_label_enabled": false,
+            "subscriptions_verification_info_is_identity_verified_enabled": true,
+            "subscriptions_verification_info_verified_since_enabled": true,
+            "highlights_tweets_tab_ui_enabled": true,
+            "responsive_web_twitter_article_notes_tab_enabled": true,
+            "creator_subscriptions_tweet_preview_api_enabled": true,
+            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
+            "responsive_web_graphql_timeline_navigation_enabled": true,
+        }),
+        "fieldToggles": JSON.stringify({
+            "withAuxiliaryUserLabels": false,
+        }),
+    })
+
+    const headers = createHeader();
+
+    const userResponse = await fetch(
+        `https://api.twitter.com/graphql/k5XapwcSikNsEsILW5FvgA/UserByScreenName?${searchParams}`,
+        { headers }
+    )
+
+    if (!userResponse.ok) {
+        throw new Error(`Twitter API returned status: ${userResponse.status}`)
+    }
+
+    const { data: { user } } = await userResponse.json()
+    const userId = user?.result?.rest_id
+    return userId
+}
+
+function getUserName(url: string): string {
+    try {
+        const parsedUrl = new URL(url);
+
+        // パスが/userId/status/tweetIdの形式であることを確認
+        const pathParts = parsedUrl.pathname.split('/').filter(part => part !== '');
+        return pathParts[0];
+    } catch {
+        return "getUserName Error";
+    }
+}
 
 // URLが正しい形式かチェックする関数
 function isValidTweetUrl(url: string): boolean {
@@ -331,12 +493,6 @@ export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
     } catch (error) {
         return "1970/01/01 00:00:00";
     }
-    const authToken = process.env.AUTH_TOKEN;
-    if (!authToken) {
-        throw new Error("AUTH_TOKEN is not defined");
-    }
-
-    const csrfToken = generateRandomHexString(16);
 
     const searchParams = new URLSearchParams({
         "variables": JSON.stringify({
@@ -382,15 +538,10 @@ export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
         })
     });
 
+    const headers = createHeader();
     const response = await fetch(
         `https://x.com/i/api/graphql/nBS-WpgA6ZG0CyNHD517JQ/TweetDetail?${searchParams}`,
-        {
-            headers: {
-                Authorization: "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-                Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
-                "X-Csrf-Token": csrfToken,
-            },
-        }
+        { headers }
     );
 
     if (!response.ok) {
