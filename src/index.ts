@@ -4,13 +4,16 @@ import { cors } from 'hono/cors'
 import type { Context } from 'hono'
 import {
   fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml, checkTweetStatus, fetchTweetCreatedAt,
-  fetchUserByScreenNameAsync, fetchSearchTimelineAsync, fetchSearchSuggestionAsync
+  fetchUserByScreenNameAsync, fetchSearchTimelineAsync, fetchSearchSuggestionAsync,
+  batchCheckTweets,
+  fetchUserId
 } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
 import { generateRandomHexString, getTimelineUrls } from './FunctionUtil'
 import { serverDecryption } from './util/ServerDecryption'
 import { CheckHistoryService } from './service/CheckHistoryService'
+import { PerformanceMonitor } from './util/PerformanceMonitor'
 
 // 環境変数の型定義
 type Bindings = {
@@ -61,38 +64,6 @@ app.get('/api/oembed', async (c: Context) => {
   }
 })
 
-async function createCheckHistory(
-  username: string,
-  url: string,
-  result: string,
-  ip: string,
-  sessionId: string,
-  tweetDate: string
-) {
-  return await prisma.twitterCheck.create({
-    data: {
-      username: username,
-      url: url,
-      result: result,
-      ip: ip,
-      sessionId: sessionId,
-      tweetDate: new Date(tweetDate)
-    }
-  })
-}
-
-function getUserName(url: string): string {
-  try {
-    const parsedUrl = new URL(url);
-
-    // パスが/userId/status/tweetIdの形式であることを確認
-    const pathParts = parsedUrl.pathname.split('/').filter(part => part !== '');
-    return pathParts[0];
-  } catch {
-    return "getUserName Error";
-  }
-}
-
 app.post('/api/check-batch', async (c: Context) => {
   try {
     const body = await c.req.json();
@@ -107,53 +78,7 @@ app.post('/api/check-batch', async (c: Context) => {
     const sessionId = generateRandomHexString(16);
 
     // Process URLs in parallel using Promise.all
-    const results = await Promise.all(
-      urls.map(async (inputUrl) => {
-        try {
-          if (!inputUrl) {
-            return {
-              code: 400,
-              status: 'INVALID_URL' as const,
-              message: 'URL parameter is required'
-            };
-          }
-
-          // URLを展開（t.coの場合のみ）
-          const targetUrl = inputUrl.includes('t.co')
-            ? await expandUrl(inputUrl)
-            : inputUrl;
-
-          const statusResult = await checkTweetStatus(targetUrl, true);
-
-          const tweetDate = await fetchTweetCreatedAt(targetUrl)
-
-          // チェック履歴を作成（非同期でバックグラウンド処理）
-          createCheckHistory(
-            getUserName(targetUrl),
-            inputUrl,
-            statusResult.status,
-            ip || '',
-            sessionId,
-            tweetDate
-          ).catch(error => {
-            console.error('Error creating check history:', error);
-          });
-
-          return {
-            url: inputUrl,
-            ...statusResult
-          };
-        } catch (error) {
-          console.error('Error checking URL:', inputUrl, error);
-          return {
-            url: inputUrl,
-            code: 500,
-            status: 'UNKNOWN' as const,
-            message: 'Internal server error'
-          };
-        }
-      })
-    );
+    const results = await batchCheckTweets(urls, ip, sessionId);
 
     return c.json({
       results: results,
@@ -223,7 +148,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
   }
 })
 
-interface TwitterCheckResult {
+interface ShadowBanCheckResult {
   not_found: boolean;
   suspend: boolean;
   protect: boolean;
@@ -237,6 +162,9 @@ interface TwitterCheckResult {
 }
 
 app.get('/api/check-by-user', async (c: Context) => {
+
+  const monitor = new PerformanceMonitor();
+
   try {
     const authToken = process.env.AUTH_TOKEN;
     if (!authToken) {
@@ -244,14 +172,15 @@ app.get('/api/check-by-user', async (c: Context) => {
     }
 
     const screenName = c.req.query('screen_name');
-
     if (!screenName) {
       return c.json({ error: 'screen_name parameter is required' }, 400);
     }
 
-    const user = await fetchUserByScreenNameAsync(screenName)
+    monitor.startOperation('fetchUser');
+    const user = await fetchUserByScreenNameAsync(screenName);
+    monitor.endOperation('fetchUser');
 
-    var result: TwitterCheckResult = {
+    var result: ShadowBanCheckResult = {
       not_found: false,
       suspend: false,
       protect: false,
@@ -280,7 +209,11 @@ app.get('/api/check-by-user', async (c: Context) => {
     }
 
     const userScreenName = user.result.legacy.screen_name; // 大文字・小文字などの表記を合わせるため取得した値を使用
-    const searchData = await fetchSearchTimelineAsync(screenName)
+
+    monitor.startOperation('fetchSearchTimeline');
+    const searchData = await fetchSearchTimelineAsync(screenName);
+    monitor.endOperation('fetchSearchTimeline');
+
     const searchTimeline = searchData.data?.search_by_raw_query?.search_timeline;
 
     let searchBanFlag = true
@@ -299,13 +232,31 @@ app.get('/api/check-by-user', async (c: Context) => {
       }
     }
 
-    // Search suggestion fetch
-    const userNameText = user.result.legacy.name
+    const userNameText = user.result.legacy.name;
 
-    const searchSuggestionUsers = await fetchSearchSuggestionAsync(screenName, userNameText)
+    monitor.startOperation('fetchSearchSuggestion');
+    const searchSuggestionUsers = await fetchSearchSuggestionAsync(screenName, userNameText);
+    monitor.endOperation('fetchSearchSuggestion');
+
     const searchSuggestionBanFlag = !searchSuggestionUsers.some(
       (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === userScreenName
-    )
+    );
+
+    const sessionId = generateRandomHexString(16);
+
+    monitor.startOperation('fetchUserId');
+    const userId = await fetchUserId(screenName);
+    monitor.endOperation('fetchUserId');
+
+    monitor.startOperation('fetchTimelineUrls');
+    const urls = (await getTimelineUrls(userId)).map(tweet => tweet.url);
+    monitor.endOperation('fetchTimelineUrls');
+
+    monitor.startOperation('batchCheckTweets');
+    const checkedTweets = await batchCheckTweets(urls, "dummyip", sessionId);
+    monitor.endOperation('batchCheckTweets');
+
+    const timings = monitor.getTimings();
 
     return c.json({
       ...result,
@@ -314,16 +265,20 @@ app.get('/api/check-by-user', async (c: Context) => {
       search_ban: searchBanFlag,
       search_suggestion_ban: searchSuggestionBanFlag,
       user: user.result,
-    })
+      tweets: checkedTweets,
+      _debug: {
+        timings
+      }
+    });
 
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Error:', error);
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
-    }, 500)
+    }, 500);
   }
-})
+});
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
@@ -639,68 +594,20 @@ app.get('/api/userreplies', async (c) => {
 
 app.get('/api/user-timeline-urls', async (c) => {
   try {
-    // 認証トークンの確認
-    const authToken = process.env.AUTH_TOKEN;
-    if (!authToken) {
-      throw new Error("AUTH_TOKEN is not defined");
-    }
-
     const screenName = c.req.query('screen_name');
     if (!screenName) {
       return c.json({ error: 'screen_name parameter is required' }, 400);
     }
 
-    // CSRFトークンの生成
-    const csrfToken = generateRandomHexString(16);
-
-    // First, get userId from screen_name using usertest endpoint
-    const searchParams = new URLSearchParams({
-      "variables": JSON.stringify({
-        "screen_name": screenName,
-        "withSafetyModeUserFields": true,
-      }),
-      "features": JSON.stringify({
-        "hidden_profile_likes_enabled": true,
-        "hidden_profile_subscriptions_enabled": true,
-        "responsive_web_graphql_exclude_directive_enabled": true,
-        "verified_phone_label_enabled": false,
-        "subscriptions_verification_info_is_identity_verified_enabled": true,
-        "subscriptions_verification_info_verified_since_enabled": true,
-        "highlights_tweets_tab_ui_enabled": true,
-        "responsive_web_twitter_article_notes_tab_enabled": true,
-        "creator_subscriptions_tweet_preview_api_enabled": true,
-        "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
-        "responsive_web_graphql_timeline_navigation_enabled": true,
-      }),
-      "fieldToggles": JSON.stringify({
-        "withAuxiliaryUserLabels": false,
-      }),
-    });
-
-    const headers = {
-      Authorization: "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-      Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
-      "X-Csrf-Token": csrfToken,
-    };
-
-    const userResponse = await fetch(
-      `https://api.twitter.com/graphql/k5XapwcSikNsEsILW5FvgA/UserByScreenName?${searchParams}`,
-      { headers }
-    );
-
-    if (!userResponse.ok) {
-      throw new Error(`Twitter API returned status: ${userResponse.status}`);
-    }
-
-    const { data: { user } } = await userResponse.json();
-    const userId = user?.result?.rest_id;
+    // 認証トークンの確認
+    const userId = await fetchUserId(screenName)
 
     if (!userId) {
       return c.json({ error: 'User not found' }, 404);
     }
 
     // Extract URLs from timeline data
-    const urls = await getTimelineUrls(authToken, userId);
+    const urls = await getTimelineUrls(userId);
 
     return c.json({ urls });
 
