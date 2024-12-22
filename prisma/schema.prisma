@@ -21,6 +21,7 @@ model TwitterCheck {
   ip       String
   sessionId String?
   tweetDate DateTime?
+  withShadowBanCheck Boolean @default(false)
   date     DateTime @default(now())
 
   @@index([username])
