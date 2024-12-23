@@ -426,8 +426,13 @@ app.get('/api/usertweets', async (c) => {
     }
 
     const csrfToken = generateRandomHexString(16);
-    const userId = c.req.query('user_id');
+    const screenName = c.req.query('screen_name');
 
+    if (!screenName) {
+      throw new Error("SCREEN_NAME is not defined");
+    }
+
+    const userId = await fetchUserId(screenName);
     if (!userId) {
       return c.json({ error: 'user_id parameter is required' }, 400);
     }

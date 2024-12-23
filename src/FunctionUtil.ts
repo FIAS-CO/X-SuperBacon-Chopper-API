@@ -8,7 +8,6 @@ export function generateRandomHexString(length: number) {
     return result;
 }
 
-
 // URLリストを抽出する関数
 interface Tweet {
     sortIndex: string;
@@ -16,77 +15,55 @@ interface Tweet {
         itemContent: {
             tweet_results: {
                 result: {
-                    rest_id: string;
-                    core: {
-                        user_results: {
-                            result: {
-                                legacy: {
-                                    screen_name: string;
-                                }
-                            }
-                        }
-                    },
-                    legacy: {
-                        retweeted_status_result?: {
-                            result: any;
-                        };
-                        entities: {
-                            media?: {
-                                type: string;
-                                media_url_https: string;
-                                video_info?: {
-                                    variants: {
-                                        content_type: string;
-                                        url: string;
-                                    }[];
-                                };
-                            }[];
-                        };
-                        extended_entities?: {
-                            media: {
-                                type: string;
-                                media_url_https: string;
-                                video_info?: {
-                                    variants: {
-                                        content_type: string;
-                                        url: string;
-                                    }[];
-                                };
-                            }[];
-                        };
-                    };
-                }
+                    tweet?: Result;
+                } & Result;
             }
         }
     }
 }
 
-export function extractTweetUrls(data: any, isAfterCursor: boolean = false): string[] {
-    // console.log(data?.data?.user?.result?.timeline_v2?.timeline?.instructions?.[2].entries)
-    const index = isAfterCursor ? 1 : 2;
-    try {
-        const entries = data?.data?.user?.result?.timeline_v2?.timeline?.instructions?.[index]?.entries || [];
-        const urls: string[] = [];
-        console.log(entries.length)
-        for (const entry of entries) {
-            // TimelineTimelineItemのエントリーのみを処理
-            if (entry?.content?.entryType === "TimelineTimelineItem" || entry?.content?.entryType === "TimelineTimelineModule") {
-                const tweet = entry as Tweet;
-                const tweetResult = tweet?.content?.itemContent?.tweet_results?.result;
-                if (tweetResult) {
-                    const screenName = tweetResult.core.user_results.result.legacy.screen_name;
-                    const tweetId = tweetResult.rest_id;
-                    const url = `https://x.com/${screenName}/status/${tweetId}`;
-                    urls.push(url);
+interface Legacy {
+    retweeted_status_result?: {
+        result: any;
+    };
+    entities: {
+        media?: {
+            type: string;
+            media_url_https: string;
+            video_info?: {
+                variants: {
+                    content_type: string;
+                    url: string;
+                }[];
+            };
+        }[];
+    };
+    extended_entities?: {
+        media: {
+            type: string;
+            media_url_https: string;
+            video_info?: {
+                variants: {
+                    content_type: string;
+                    url: string;
+                }[];
+            };
+        }[];
+    };
+}
+
+interface Result {
+    rest_id: string;
+    core?: {
+        user_results: {
+            result: {
+                legacy: {
+                    screen_name: string;
                 }
             }
         }
-
-        return urls;
-    } catch (error) {
-        console.error('Error extracting URLs:', error);
-        return [];
-    }
+    },
+    legacy: Legacy;
 }
 
 export function extractCursor(data: any, isAfterCursor: boolean = false): string {
@@ -164,9 +141,12 @@ function extractTweetInfos(data: any, isAfterCursor: boolean = false): TweetInfo
                 const tweet = entry as Tweet;
                 const tweetResult = tweet?.content?.itemContent?.tweet_results?.result;
 
+                // tweet_results.result.__typename = "TweetWithVisibilityResults"のときtweetResultの下がtweetになる
                 if (tweetResult) {
-                    const screenName = tweetResult.core.user_results.result.legacy.screen_name;
-                    const tweetId = tweetResult.rest_id;
+                    console.log(tweetResult.rest_id)
+                    const core = tweetResult.core || tweetResult.tweet?.core
+                    const screenName = core?.user_results.result.legacy.screen_name;
+                    const tweetId = tweetResult.rest_id || tweetResult.tweet?.rest_id;
                     const url = `https://x.com/${screenName}/status/${tweetId}`;
 
                     // 追加情報を取得
@@ -251,7 +231,8 @@ async function getResponse(authToken: string, userId: string, cursor: string = "
  * ツイートが画像、動画、GIFのいずれかのメディアを含むかどうかを判定
  */
 export function hasPicOrVideo(tweet: Tweet): boolean {
-    const legacy = tweet.content.itemContent.tweet_results.result.legacy;
+    const tweetResult = tweet.content.itemContent.tweet_results.result
+    const legacy = tweetResult.legacy || tweetResult.tweet?.legacy;
     if (!legacy) return false;
 
     // メディアを取得（extended_entitiesを優先）
@@ -266,5 +247,8 @@ export function hasPicOrVideo(tweet: Tweet): boolean {
  * ツイートがリツイートかどうかを判定
  */
 export function isRetweet(tweet: Tweet): boolean {
-    return tweet.content.itemContent.tweet_results.result.legacy?.retweeted_status_result !== undefined;
+    const tweetResult = tweet.content.itemContent.tweet_results?.result;
+
+    return tweetResult.legacy?.retweeted_status_result !== undefined
+        || tweetResult.tweet?.legacy?.retweeted_status_result !== undefined;
 }
