@@ -172,6 +172,9 @@ app.get('/api/check-by-user', async (c: Context) => {
       return c.json({ error: 'screen_name parameter is required' }, 400);
     }
 
+    const encryptedIp = c.req.query('key');
+    const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+
     monitor.startOperation('fetchUser');
     const user = await fetchUserByScreenNameAsync(screenName);
     monitor.endOperation('fetchUser');
@@ -249,7 +252,7 @@ app.get('/api/check-by-user', async (c: Context) => {
     monitor.endOperation('fetchTimelineUrls');
 
     monitor.startOperation('batchCheckTweets');
-    const checkedTweets = await batchCheckTweets(urls, "dummyip", sessionId, true);
+    const checkedTweets = await batchCheckTweets(urls, ip, sessionId, true);
     monitor.endOperation('batchCheckTweets');
 
     const timings = monitor.getTimings();
