@@ -12,7 +12,7 @@ interface CheckResult {
     tweetDate?: string;
 }
 
-export async function batchCheckTweets(urls: string[], ip: string, sessionId: string): Promise<CheckResult[]> {
+export async function batchCheckTweets(urls: string[], ip: string, sessionId: string, withShadowBanCheck: boolean = false): Promise<CheckResult[]> {
     const BATCH_SIZE = 5;
     const results = [];
 
@@ -82,7 +82,8 @@ export async function batchCheckTweets(urls: string[], ip: string, sessionId: st
                 history.status,
                 history.ip,
                 history.sessionId,
-                history.tweetDate
+                history.tweetDate,
+                withShadowBanCheck
             )
         )
     ).catch(error => {
@@ -105,7 +106,8 @@ async function createCheckHistory(
     result: string,
     ip: string,
     sessionId: string,
-    tweetDate: string
+    tweetDate: string,
+    withShadowBanCheck: boolean = false
 ) {
     return await prisma.twitterCheck.create({
         data: {
@@ -114,7 +116,8 @@ async function createCheckHistory(
             result: result,
             ip: ip,
             sessionId: sessionId,
-            tweetDate: new Date(tweetDate)
+            tweetDate: new Date(tweetDate),
+            withShadowBanCheck: withShadowBanCheck
         }
     })
 }

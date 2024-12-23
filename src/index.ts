@@ -253,7 +253,7 @@ app.get('/api/check-by-user', async (c: Context) => {
     monitor.endOperation('fetchTimelineUrls');
 
     monitor.startOperation('batchCheckTweets');
-    const checkedTweets = await batchCheckTweets(urls, "dummyip", sessionId);
+    const checkedTweets = await batchCheckTweets(urls, "dummyip", sessionId, true);
     monitor.endOperation('batchCheckTweets');
 
     const timings = monitor.getTimings();
