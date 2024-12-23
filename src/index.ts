@@ -15,10 +15,7 @@ import { serverDecryption } from './util/ServerDecryption'
 import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
 
-// 環境変数の型定義
-type Bindings = {
-  // 必要に応じて環境変数の型を追加
-}
+type Bindings = {}
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -94,7 +91,6 @@ app.post('/api/check-batch', async (c: Context) => {
   }
 })
 
-// 利用可能性をチェックするAPIエンドポイント
 app.get('/api/get-history-2n7b4x9k5m1p3v8h6j4w', async (c: Context) => {
   try {
     const history = await prisma.twitterCheck.findMany({
