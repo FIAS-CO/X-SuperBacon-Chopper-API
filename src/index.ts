@@ -241,8 +241,6 @@ app.get('/api/check-by-user', async (c: Context) => {
       (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === userScreenName
     );
 
-    const sessionId = generateRandomHexString(16);
-
     monitor.startOperation('fetchUserId');
     const userId = await fetchUserId(screenName);
     monitor.endOperation('fetchUserId');
@@ -252,7 +250,7 @@ app.get('/api/check-by-user', async (c: Context) => {
     monitor.endOperation('fetchTimelineUrls');
 
     monitor.startOperation('batchCheckTweets');
-    const checkedTweets = await batchCheckTweets(urls, ip, sessionId, true);
+    const checkedTweets = await batchCheckTweets(urls, ip, true);
     monitor.endOperation('batchCheckTweets');
 
     const timings = monitor.getTimings();
