@@ -660,13 +660,13 @@ export async function fetchSearchSuggestionAsync(screenName: string, userNameTex
         "include_ext_is_blue_verified": "1",
         "include_ext_verified_type": "1",
         "include_ext_profile_image_shape": "1",
-        "q": `@${screenName} ${userNameText}`,
+        "q": `@${screenName}`,
         "src": "search_box",
         "result_type": "events,users,topics,lists",
     })
 
     const suggestionResponse = await fetch(
-        `https://api.twitter.com/1.1/search/typeahead.json?${suggestionParams}`,
+        `https://x.com/i/api/1.1/search/typeahead.json?${suggestionParams}`,
         { headers }
     )
 
