@@ -272,11 +272,9 @@ export async function checkTweetStatus(url: string, isRecursive: boolean): Promi
         if (data.html) {
             if (isRecursive) {
                 const tcoUrlsInResponse = extractTcoUrls(data.html)
-                console.log(tcoUrlsInResponse)
                 const expandedUrls = await Promise.all(
                     tcoUrlsInResponse.map(url => expandUrl(url))
                 );
-                console.log(expandedUrls)
 
                 for (const url of expandedUrls) {
                     const result = await checkTweetStatus(url, false);

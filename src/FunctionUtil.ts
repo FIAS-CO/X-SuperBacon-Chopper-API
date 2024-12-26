@@ -70,9 +70,7 @@ export function extractCursor(data: any, isAfterCursor: boolean = false): string
     const index = isAfterCursor ? 1 : 2;
     try {
         const entries = data?.data?.user?.result?.timeline_v2?.timeline?.instructions?.[index]?.entries || [];
-        // console.log(entries[entries.length - 1])
         return entries[entries.length - 1].content.value
-
     } catch (error) {
         console.error('Error extracting URLs:', error);
         return "";
@@ -143,7 +141,6 @@ function extractTweetInfos(data: any, isAfterCursor: boolean = false): TweetInfo
 
                 // tweet_results.result.__typename = "TweetWithVisibilityResults"のときtweetResultの下がtweetになる
                 if (tweetResult) {
-                    console.log(tweetResult.rest_id)
                     const core = tweetResult.core || tweetResult.tweet?.core
                     const screenName = core?.user_results.result.legacy.screen_name;
                     const tweetId = tweetResult.rest_id || tweetResult.tweet?.rest_id;
@@ -175,8 +172,6 @@ async function getResponse(authToken: string, userId: string, cursor: string = "
         Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
         "X-Csrf-Token": csrfToken,
     };
-
-    console.log(`cursor: ${cursor}`)
 
     // Now get user's timeline
     const timelineParams = new URLSearchParams({

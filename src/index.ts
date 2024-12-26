@@ -33,8 +33,6 @@ async function fetchOembedData(url: string) {
   oembedUrl.searchParams.append('hide_thread', 'false')
 
   const response = await fetch(oembedUrl.toString())
-  console.log("aaaaaa")
-  console.log(response)
   return await response.json()
 }
 
@@ -136,7 +134,6 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
       return c.json({ error: 'URL parameter is required' }, 400)
     }
     const historyList = await new CheckHistoryService().getHistoryById(sessionId);
-    console.log(historyList)
     return c.json(historyList)
   } catch (error) {
     console.error(error)
