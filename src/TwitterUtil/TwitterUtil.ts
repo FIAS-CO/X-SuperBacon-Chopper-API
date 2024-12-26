@@ -12,7 +12,7 @@ interface CheckResult {
     tweetDate?: string;
 }
 
-export async function batchCheckTweets(urls: string[], ip: string, withShadowBanCheck: boolean = false): Promise<CheckResult[]> {
+export async function batchCheckTweets(urls: string[], ip: string, sessionId: string, withShadowBanCheck: boolean = false): Promise<CheckResult[]> {
     const BATCH_SIZE = 5;
     const results = [];
 
@@ -64,7 +64,6 @@ export async function batchCheckTweets(urls: string[], ip: string, withShadowBan
     }
 
     // 履歴のバッチ作成（非同期で実行）
-    const sessionId = generateRandomHexString(16);
     const histories = results.map(result => ({
         username: getUserName(result.url),
         url: result.url,
