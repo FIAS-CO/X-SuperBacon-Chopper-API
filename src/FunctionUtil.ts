@@ -63,6 +63,7 @@ interface Result {
             }
         }
     },
+    quoted_status_result: any,
     legacy: Legacy;
 }
 
@@ -77,15 +78,25 @@ export function extractCursor(data: any, isAfterCursor: boolean = false): string
     }
 }
 
+export async function getTimelineUrls(userId: string, containRepost: boolean): Promise<string[]> {
+    const tweetInfos = await getTimelineTweetInfo(userId);
+
+    return tweetInfos
+        .filter(tweet => containRepost || (!tweet.isRetweet && !tweet.isQuated))
+        .map(tweet => tweet.url);
+}
+
 export interface TweetInfo {
     url: string;           // ツイートのURL
     isRetweet: boolean;    // リツイートかどうか
+    isQuated: boolean;
     hasMedia: boolean;     // 画像/動画/GIFを含むかどうか
 }
+
 /**
  * タイムラインからツイート情報を抽出
  */
-export async function getTimelineUrls(userId: string): Promise<TweetInfo[]> {
+export async function getTimelineTweetInfo(userId: string): Promise<TweetInfo[]> {
     const DESIRED_COUNT = 20;
     const authToken = process.env.AUTH_TOKEN;
     if (!authToken) {
@@ -150,6 +161,7 @@ function extractTweetInfos(data: any, isAfterCursor: boolean = false): TweetInfo
                     tweetInfos.push({
                         url: url,
                         isRetweet: isRetweet(tweet),
+                        isQuated: isQuated(tweet),
                         hasMedia: hasPicOrVideo(tweet)
                     });
                 }
@@ -246,4 +258,11 @@ export function isRetweet(tweet: Tweet): boolean {
 
     return tweetResult.legacy?.retweeted_status_result !== undefined
         || tweetResult.tweet?.legacy?.retweeted_status_result !== undefined;
+}
+
+export function isQuated(tweet: Tweet): boolean {
+    const tweetResult = tweet.content.itemContent.tweet_results?.result;
+    const quatedStatusResult: any = tweetResult.quoted_status_result;
+
+    return quatedStatusResult != null;
 }

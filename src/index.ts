@@ -10,7 +10,7 @@ import {
 } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
-import { generateRandomHexString, getTimelineUrls } from './FunctionUtil'
+import { generateRandomHexString, getTimelineTweetInfo, getTimelineUrls } from './FunctionUtil'
 import { serverDecryption } from './util/ServerDecryption'
 import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
@@ -169,6 +169,9 @@ app.get('/api/check-by-user', async (c: Context) => {
       return c.json({ error: 'screen_name parameter is required' }, 400);
     }
 
+    const checkSearchBan = c.req.query('searchban') === 'true';
+    const checkRepost = c.req.query('repost') === 'true';
+
     const encryptedIp = c.req.query('key');
     const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
 
@@ -238,18 +241,21 @@ app.get('/api/check-by-user', async (c: Context) => {
       (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === userScreenName
     );
 
-    monitor.startOperation('fetchUserId');
-    const userId = await fetchUserId(screenName);
-    monitor.endOperation('fetchUserId');
+    var checkedTweets = checkSearchBan ? await (async () => {
+      monitor.startOperation('fetchUserId');
+      const userId = await fetchUserId(screenName);
+      monitor.endOperation('fetchUserId');
 
-    monitor.startOperation('fetchTimelineUrls');
-    const urls = (await getTimelineUrls(userId)).map(tweet => tweet.url);
-    monitor.endOperation('fetchTimelineUrls');
+      monitor.startOperation('fetchTimelineUrls');
+      const urls = await getTimelineUrls(userId, checkRepost);
+      monitor.endOperation('fetchTimelineUrls');
 
-    monitor.startOperation('batchCheckTweets');
-    const sessionId = generateRandomHexString(16);
-    const checkedTweets = await batchCheckTweets(urls, ip, sessionId, true);
-    monitor.endOperation('batchCheckTweets');
+      monitor.startOperation('batchCheckTweets');
+      const sessionId = generateRandomHexString(16);
+      const tweets = await batchCheckTweets(urls, ip, sessionId, true);
+      monitor.endOperation('batchCheckTweets');
+      return tweets;
+    })() : undefined;
 
     const timings = monitor.getTimings();
 
@@ -598,6 +604,7 @@ app.get('/api/user-timeline-urls', async (c) => {
     if (!screenName) {
       return c.json({ error: 'screen_name parameter is required' }, 400);
     }
+    const checkRepost = c.req.query('repost') === 'true';
 
     // 認証トークンの確認
     const userId = await fetchUserId(screenName)
@@ -607,7 +614,7 @@ app.get('/api/user-timeline-urls', async (c) => {
     }
 
     // Extract URLs from timeline data
-    const urls = await getTimelineUrls(userId);
+    const urls = await getTimelineUrls(userId, checkRepost);
 
     return c.json({ urls });
 
