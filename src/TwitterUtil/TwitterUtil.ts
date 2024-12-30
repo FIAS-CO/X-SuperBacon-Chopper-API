@@ -684,15 +684,13 @@ export function extractCursor(data: any): string {
  * タイムラインからツイート情報を抽出
  */
 export async function getTimelineUrls(userId: string, containRepost: boolean): Promise<string[]> {
-    const tweetInfos = await getTimelineTweetInfo(userId);
+    const tweetInfos = await getTimelineTweetInfo(userId, containRepost);
 
     return tweetInfos
-        .filter(tweet => containRepost || (!tweet.isRetweet && !tweet.isQuated))
         .map(tweet => tweet.url);
 }
 
-async function getTimelineTweetInfo(userId: string): Promise<TweetInfo[]> {
-    console.log("startGetTimelineTweetInfo");
+async function getTimelineTweetInfo(userId: string, containRepost: boolean): Promise<TweetInfo[]> {
     const DESIRED_COUNT = 20;
     const authToken = process.env.AUTH_TOKEN;
     if (!authToken) {
@@ -710,7 +708,8 @@ async function getTimelineTweetInfo(userId: string): Promise<TweetInfo[]> {
         }
 
         const data = await response.json();
-        const newTweetInfos = extractTweetInfos(data);
+        const newTweetInfos = extractTweetInfos(data)
+            .filter(tweet => containRepost || (!tweet.isRetweet && !tweet.isQuated));
 
         // 新しいツイートがない場合は終了
         if (newTweetInfos.length === 0) break;
