@@ -45,4 +45,26 @@ export class CheckHistoryService {
             throw error;
         }
     }
+
+    async createCheckHistory(
+        username: string,
+        url: string,
+        result: string,
+        ip: string,
+        sessionId: string,
+        tweetDate: string,
+        withShadowBanCheck: boolean = false
+    ): Promise<any> {
+        return await prisma.twitterCheck.create({
+            data: {
+                username: username,
+                url: url,
+                result: result,
+                ip: ip,
+                sessionId: sessionId,
+                tweetDate: new Date(tweetDate),
+                withShadowBanCheck: withShadowBanCheck
+            }
+        })
+    }
 }
