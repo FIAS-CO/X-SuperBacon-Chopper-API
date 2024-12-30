@@ -97,6 +97,7 @@ export interface TweetInfo {
  * タイムラインからツイート情報を抽出
  */
 export async function getTimelineTweetInfo(userId: string): Promise<TweetInfo[]> {
+    console.log("startGetTimelineTweetInfo")
     const DESIRED_COUNT = 20;
     const authToken = process.env.AUTH_TOKEN;
     if (!authToken) {
@@ -141,6 +142,7 @@ function extractTweetInfos(data: any, isAfterCursor: boolean = false): TweetInfo
     const index = isAfterCursor ? 1 : 2;
     try {
         const entries = data?.data?.user?.result?.timeline_v2?.timeline?.instructions?.[index]?.entries || [];
+        console.log("entries count " + entries.length)
         const tweetInfos: TweetInfo[] = [];
 
         for (const entry of entries) {
@@ -156,7 +158,7 @@ function extractTweetInfos(data: any, isAfterCursor: boolean = false): TweetInfo
                     const screenName = core?.user_results.result.legacy.screen_name;
                     const tweetId = tweetResult.rest_id || tweetResult.tweet?.rest_id;
                     const url = `https://x.com/${screenName}/status/${tweetId}`;
-
+                    console.log("URL " + url)
                     // 追加情報を取得
                     tweetInfos.push({
                         url: url,

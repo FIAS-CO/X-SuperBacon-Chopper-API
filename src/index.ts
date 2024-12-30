@@ -355,7 +355,7 @@ app.get('/api/extract-urls', async (c) => {
   }
 })
 
-app.get('/api/usertest', async (c) => {
+app.get('/api/user-by-screen-name', async (c) => {
   try {
     const authToken = process.env.AUTH_TOKEN;
     if (!authToken) {

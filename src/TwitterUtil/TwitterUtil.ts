@@ -65,7 +65,7 @@ export async function batchCheckTweets(urls: string[], ip: string, sessionId: st
 
     // 履歴のバッチ作成（非同期で実行）
     const histories = results.map(result => ({
-        username: getUserName(result.url),
+        username: pickScreenName(result.url),
         url: result.url,
         status: result.status,
         ip: ip,
@@ -163,7 +163,7 @@ export async function fetchUserId(screenName: string) {
     return userId
 }
 
-function getUserName(url: string): string {
+function pickScreenName(url: string): string {
     try {
         const parsedUrl = new URL(url);
 
