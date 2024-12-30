@@ -3,7 +3,6 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Context } from 'hono'
 import {
-  fetchWithRedirects, isAuthenticationPage, extractUrlsFromHtml, checkTweetStatus, fetchTweetCreatedAt,
   fetchUserByScreenNameAsync, fetchSearchTimelineAsync, fetchSearchSuggestionAsync,
   batchCheckTweets,
   fetchUserId
@@ -312,50 +311,6 @@ app.get('/api/searchtimeline', async (c: Context) => {
 //---
 //以下テスト用
 //---
-
-app.get('/api/extract-urls', async (c) => {
-  try {
-    const targetUrl = c.req.query('url')
-
-    if (!targetUrl) {
-      return c.json({ error: 'URL parameter is required' }, 400)
-    }
-
-    console.log('Fetching URL:', targetUrl)
-
-    // HTMLの取得（リダイレクトに対応）
-    const { html, finalUrl } = await fetchWithRedirects(targetUrl)
-
-    // リダイレクトページかどうかのチェック
-    if (isAuthenticationPage(html)) {
-      return c.json({
-        error: 'Authentication required',
-        message: 'This URL requires authentication or has been redirected to a login page',
-        source_url: targetUrl,
-        final_url: finalUrl,
-        html_preview: html.substring(0, 200) // デバッグ用にプレビューを含める
-      }, 403)
-    }
-
-    const urls = extractUrlsFromHtml(html)
-    return c.json({
-      source_url: targetUrl,
-      final_url: finalUrl,
-      extracted_urls: urls,
-      count: urls.length,
-      html_preview: html.substring(0, 200) // デバッグ用にプレビューを含める
-    })
-
-  } catch (error) {
-    console.error('Error:', error)
-    return c.json({
-      error: 'Failed to extract URLs',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      source_url: c.req.query('url')
-    }, 500)
-  }
-})
-
 app.get('/api/user-by-screen-name', async (c) => {
   try {
     const authToken = process.env.AUTH_TOKEN;
