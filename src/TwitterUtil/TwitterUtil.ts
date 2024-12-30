@@ -502,69 +502,11 @@ export async function fetchSearchSuggestionAsync(screenName: string, userNameTex
     return searchSuggestionUsers;
 }
 
-export async function fetchUserTweetsAsync(authToken: string, userId: string, cursor: string = ""): Promise<Response> {
-    // CSRFトークンの生成
-    const csrfToken = generateRandomHexString(16);
-
-    const headers = {
-        Authorization: "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-        Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
-        "X-Csrf-Token": csrfToken,
-    };
-
-    // Now get user's timeline
-    const timelineParams = new URLSearchParams({
-        variables: JSON.stringify({
-            userId: userId,
-            count: 20,
-            cursor: cursor, //'DAABCgABGcvdSpV___AKAAIZyYBlGJqx0QgAAwAAAAIAAA',
-            includePromotedContent: true,
-            withQuickPromoteEligibilityTweetFields: true,
-            withVoice: true,
-            withV2Timeline: true
-        }),
-        features: JSON.stringify({
-            rweb_tipjar_consumption_enabled: true,
-            responsive_web_graphql_exclude_directive_enabled: true,
-            verified_phone_label_enabled: false,
-            creator_subscriptions_tweet_preview_api_enabled: true,
-            responsive_web_graphql_timeline_navigation_enabled: true,
-            responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
-            communities_web_enable_tweet_community_results_fetch: true,
-            c9s_tweet_anatomy_moderator_badge_enabled: true,
-            articles_preview_enabled: true,
-            responsive_web_edit_tweet_api_enabled: true,
-            graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
-            view_counts_everywhere_api_enabled: true,
-            longform_notetweets_consumption_enabled: true,
-            responsive_web_twitter_article_tweet_consumption_enabled: true,
-            tweet_awards_web_tipping_enabled: false,
-            creator_subscriptions_quote_tweet_preview_enabled: false,
-            freedom_of_speech_not_reach_fetch_enabled: true,
-            standardized_nudges_misinfo: true,
-            tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
-            rweb_video_timestamps_enabled: true,
-            longform_notetweets_rich_text_read_enabled: true,
-            longform_notetweets_inline_media_enabled: true,
-            responsive_web_enhance_cards_enabled: false
-        }),
-        fieldToggles: JSON.stringify({
-            withArticlePlainText: false
-        })
-    });
-
-    const timelineResponse = await fetch(
-        `https://x.com/i/api/graphql/Tg82Ez_kxVaJf7OPbUdbCg/UserTweets?${timelineParams}`,
-        { headers }
-    );
-
-    return timelineResponse;
-}
-
 // URLリストを抽出する関数
 export interface Tweet {
     sortIndex: string;
     content: {
+        entryType: string;
         itemContent: {
             tweet_results: {
                 result: {
@@ -572,6 +514,7 @@ export interface Tweet {
                 } & Result;
             };
         };
+        value?: string; // content.entryId が cursor- のときだけある
     };
 }
 
@@ -634,59 +577,31 @@ interface TweetInfo {
     hasMedia: boolean; // 画像/動画/GIFを含むかどうか
 }
 
-/**
- * タイムラインからツイート情報を抽出
- */
-export async function getTimelineTweetInfo(userId: string): Promise<TweetInfo[]> {
-    console.log("startGetTimelineTweetInfo");
-    const DESIRED_COUNT = 20;
-    const authToken = process.env.AUTH_TOKEN;
-    if (!authToken) {
-        throw new Error("AUTH_TOKEN is not defined");
-    }
-
-    let allTweetInfos: TweetInfo[] = [];
-    let cursor: string = "";
-    let isAfterCursor = false;
-
-    while (allTweetInfos.length < DESIRED_COUNT) {
-        // API呼び出し
-        const response = await fetchUserTweetsAsync(authToken, userId, cursor);
-        if (!response.ok) {
-            throw new Error(`Twitter API returned status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const newTweetInfos = extractTweetInfos(data, !!cursor);
-
-        // 新しいツイートがない場合は終了
-        if (newTweetInfos.length === 0) break;
-
-        allTweetInfos = [...allTweetInfos, ...newTweetInfos];
-
-        // 次のページのカーソルを取得
-        cursor = extractCursor(data, isAfterCursor);
-
-        isAfterCursor = true;
-        // カーソルがない場合は終了（最後のページに到達）
-        if (!cursor) break;
-    }
-
-    // 最大50件まで返す
-    return allTweetInfos.slice(0, DESIRED_COUNT);
+interface Instruction {
+    type: string;
+    entries?: Tweet[];
 }
+
 
 /**
  * タイムラインデータからツイート情報を抽出する補助関数
  */
-function extractTweetInfos(data: any, isAfterCursor: boolean = false): TweetInfo[] {
-    const index = isAfterCursor ? 1 : 2;
+function extractTweetInfos(data: any): TweetInfo[] {
     try {
-        const entries = data?.data?.user?.result?.timeline_v2?.timeline?.instructions?.[index]?.entries || [];
-        console.log("entries count " + entries.length);
+        const instructions: Instruction[] = data?.data?.user?.result?.timeline_v2?.timeline?.instructions || [];
+        const targetInstruction = instructions.find(
+            instruction => instruction.type === "TimelineAddEntries"
+        );
+
+        if (!targetInstruction) {
+            console.log("No TimelineAddEntries found");
+            return [];
+        }
+
+        const timelineAddEntries = targetInstruction.entries || [];
         const tweetInfos: TweetInfo[] = [];
 
-        for (const entry of entries) {
+        for (const entry of timelineAddEntries) {
             // TimelineTimelineItemのエントリーのみを処理
             if (entry?.content?.entryType === "TimelineTimelineItem" ||
                 entry?.content?.entryType === "TimelineTimelineModule") {
@@ -744,23 +659,132 @@ export function isRetweet(tweet: Tweet): boolean {
         || tweetResult.tweet?.legacy?.retweeted_status_result !== undefined;
 }
 
-export function extractCursor(data: any, isAfterCursor: boolean = false): string {
-    const index = isAfterCursor ? 1 : 2;
+export function extractCursor(data: any): string {
     try {
-        const entries = data?.data?.user?.result?.timeline_v2?.timeline?.instructions?.[index]?.entries || [];
-        return entries[entries.length - 1].content.value;
+        const instructions: Instruction[] = data?.data?.user?.result?.timeline_v2?.timeline?.instructions || [];
+
+        const targetInstruction = instructions.find(
+            instruction => instruction.type === "TimelineAddEntries"
+        );
+
+        if (!targetInstruction) {
+            console.log("No TimelineAddEntries found");
+            return "";
+        }
+
+        const timelineAddEntries = targetInstruction.entries || [];
+        return timelineAddEntries[timelineAddEntries.length - 1].content.value ?? "";
     } catch (error) {
         console.error('Error extracting URLs:', error);
         return "";
     }
 }
 
+/**
+ * タイムラインからツイート情報を抽出
+ */
 export async function getTimelineUrls(userId: string, containRepost: boolean): Promise<string[]> {
     const tweetInfos = await getTimelineTweetInfo(userId);
 
     return tweetInfos
         .filter(tweet => containRepost || (!tweet.isRetweet && !tweet.isQuated))
         .map(tweet => tweet.url);
+}
+
+async function getTimelineTweetInfo(userId: string): Promise<TweetInfo[]> {
+    console.log("startGetTimelineTweetInfo");
+    const DESIRED_COUNT = 20;
+    const authToken = process.env.AUTH_TOKEN;
+    if (!authToken) {
+        throw new Error("AUTH_TOKEN is not defined");
+    }
+
+    let allTweetInfos: TweetInfo[] = [];
+    let cursor: string = "";
+
+    while (allTweetInfos.length < DESIRED_COUNT) {
+        // API呼び出し
+        const response = await fetchUserTweetsAsync(authToken, userId, cursor);
+        if (!response.ok) {
+            throw new Error(`Twitter API returned status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const newTweetInfos = extractTweetInfos(data);
+
+        // 新しいツイートがない場合は終了
+        if (newTweetInfos.length === 0) break;
+
+        allTweetInfos = [...allTweetInfos, ...newTweetInfos];
+
+        // 次のページのカーソルを取得
+        cursor = extractCursor(data);
+
+        // カーソルがない場合は終了（最後のページに到達）
+        if (!cursor) break;
+    }
+
+    // 最大50件まで返す
+    return allTweetInfos.slice(0, DESIRED_COUNT);
+}
+
+async function fetchUserTweetsAsync(authToken: string, userId: string, cursor: string = ""): Promise<Response> {
+    // CSRFトークンの生成
+    const csrfToken = generateRandomHexString(16);
+
+    const headers = {
+        Authorization: "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+        Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
+        "X-Csrf-Token": csrfToken,
+    };
+
+    // Now get user's timeline
+    const timelineParams = new URLSearchParams({
+        variables: JSON.stringify({
+            userId: userId,
+            count: 20,
+            cursor: cursor, //'DAABCgABGcvdSpV___AKAAIZyYBlGJqx0QgAAwAAAAIAAA',
+            includePromotedContent: true,
+            withQuickPromoteEligibilityTweetFields: true,
+            withVoice: true,
+            withV2Timeline: true
+        }),
+        features: JSON.stringify({
+            rweb_tipjar_consumption_enabled: true,
+            responsive_web_graphql_exclude_directive_enabled: true,
+            verified_phone_label_enabled: false,
+            creator_subscriptions_tweet_preview_api_enabled: true,
+            responsive_web_graphql_timeline_navigation_enabled: true,
+            responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
+            communities_web_enable_tweet_community_results_fetch: true,
+            c9s_tweet_anatomy_moderator_badge_enabled: true,
+            articles_preview_enabled: true,
+            responsive_web_edit_tweet_api_enabled: true,
+            graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
+            view_counts_everywhere_api_enabled: true,
+            longform_notetweets_consumption_enabled: true,
+            responsive_web_twitter_article_tweet_consumption_enabled: true,
+            tweet_awards_web_tipping_enabled: false,
+            creator_subscriptions_quote_tweet_preview_enabled: false,
+            freedom_of_speech_not_reach_fetch_enabled: true,
+            standardized_nudges_misinfo: true,
+            tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+            rweb_video_timestamps_enabled: true,
+            longform_notetweets_rich_text_read_enabled: true,
+            longform_notetweets_inline_media_enabled: true,
+            responsive_web_enhance_cards_enabled: false
+        }),
+        fieldToggles: JSON.stringify({
+            withArticlePlainText: false
+        })
+    });
+
+    const timelineResponse = await fetch(
+        `https://x.com/i/api/graphql/Tg82Ez_kxVaJf7OPbUdbCg/UserTweets?${timelineParams}`,
+        { headers }
+    );
+
+    return timelineResponse;
 }
 
 function createHeader() {
