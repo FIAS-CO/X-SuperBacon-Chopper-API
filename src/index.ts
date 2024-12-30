@@ -10,7 +10,8 @@ import {
 } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
-import { generateRandomHexString, getTimelineTweetInfo, getTimelineUrls } from './FunctionUtil'
+import { generateRandomHexString } from './FunctionUtil'
+import { getTimelineUrls } from "./TwitterUtil/TwitterUtil"
 import { serverDecryption } from './util/ServerDecryption'
 import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
