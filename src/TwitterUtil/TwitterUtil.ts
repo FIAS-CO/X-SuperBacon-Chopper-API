@@ -502,16 +502,26 @@ export async function fetchSearchSuggestionAsync(screenName: string, userNameTex
     return searchSuggestionUsers;
 }
 
+interface Item {
+    item: {
+        itemContent: {
+            tweet_results: {
+                result: Result
+            }
+        }
+    }
+}
+
 // URLリストを抽出する関数
 export interface Tweet {
+    entryId: string;
     sortIndex: string;
     content: {
+        items: Item[];
         entryType: string;
         itemContent: {
             tweet_results: {
-                result: {
-                    tweet?: Result;
-                } & Result;
+                result: Result;
             };
         };
         value?: string; // content.entryId が cursor- のときだけある
@@ -519,6 +529,7 @@ export interface Tweet {
 }
 
 interface Legacy {
+    screen_name: string;
     retweeted_status_result?: {
         result: any;
     };
@@ -549,25 +560,18 @@ interface Legacy {
 }
 
 interface Result {
+    __typename: string;
     rest_id: string;
+    tweet?: Result;
     core?: {
         user_results: {
             result: {
-                legacy: {
-                    screen_name: string;
-                };
+                legacy: Legacy;
             };
         };
     };
     quoted_status_result: any;
     legacy: Legacy;
-}
-
-export function isQuated(tweet: Tweet): boolean {
-    const tweetResult = tweet.content.itemContent.tweet_results?.result;
-    const quatedStatusResult: any = tweetResult.quoted_status_result;
-
-    return quatedStatusResult != null;
 }
 
 interface TweetInfo {
@@ -582,7 +586,6 @@ interface Instruction {
     entries?: Tweet[];
 }
 
-
 /**
  * タイムラインデータからツイート情報を抽出する補助関数
  */
@@ -594,7 +597,6 @@ function extractTweetInfos(data: any): TweetInfo[] {
         );
 
         if (!targetInstruction) {
-            console.log("No TimelineAddEntries found");
             return [];
         }
 
@@ -602,27 +604,21 @@ function extractTweetInfos(data: any): TweetInfo[] {
         const tweetInfos: TweetInfo[] = [];
 
         for (const entry of timelineAddEntries) {
-            // TimelineTimelineItemのエントリーのみを処理
-            if (entry?.content?.entryType === "TimelineTimelineItem" ||
-                entry?.content?.entryType === "TimelineTimelineModule") {
-                const tweet = entry as Tweet;
+            const tweet = entry as Tweet;
+            if (tweet.content?.entryType === "TimelineTimelineItem") {
                 const tweetResult = tweet?.content?.itemContent?.tweet_results?.result;
-
-                // tweet_results.result.__typename = "TweetWithVisibilityResults"のときtweetResultの下がtweetになる
                 if (tweetResult) {
-                    const core = tweetResult.core || tweetResult.tweet?.core;
-                    const screenName = core?.user_results.result.legacy.screen_name;
-                    const tweetId = tweetResult.rest_id || tweetResult.tweet?.rest_id;
-                    const url = `https://x.com/${screenName}/status/${tweetId}`;
-                    console.log("URL " + url);
-                    // 追加情報を取得
-                    tweetInfos.push({
-                        url: url,
-                        isRetweet: isRetweet(tweet),
-                        isQuated: isQuated(tweet),
-                        hasMedia: hasPicOrVideo(tweet)
-                    });
+                    pushTweetInfo(tweetResult, tweetInfos, true);
                 }
+            } else if (tweet.content?.entryType === "TimelineTimelineModule") {
+                const items: Item[] = tweet?.content?.items;
+
+                items.forEach(item => {
+                    const tweetResult = item.item.itemContent.tweet_results?.result;
+                    if (tweetResult && tweetResult.__typename === "Tweet") {
+                        pushTweetInfo(tweetResult, tweetInfos);
+                    }
+                });
             }
         }
 
@@ -631,32 +627,62 @@ function extractTweetInfos(data: any): TweetInfo[] {
         console.error('Error extracting tweet infos:', error);
         return [];
     }
+
+    function pushTweetInfo(tweetResult: Result, tweetInfos: TweetInfo[], checkRetweet: boolean = false) {
+        try {
+            const core = tweetResult.core || tweetResult.tweet?.core;
+            const legacy = core?.user_results.result.legacy;
+            const screenName = legacy?.screen_name;
+            const tweetId = tweetResult.rest_id || tweetResult.tweet?.rest_id;
+            const url = `https://x.com/${screenName}/status/${tweetId}`;
+
+            tweetInfos.push({
+                url: url,
+                isRetweet: checkRetweet ? isRetweet(legacy) : false,
+                isQuated: isQuated(tweetResult),
+                hasMedia: false,
+            });
+        } catch (error) {
+            tweetInfos.push({
+                url: `https://x.com/unknown/status/unknown`,
+                isRetweet: false,
+                isQuated: false,
+                hasMedia: false
+            });
+        }
+    }
 }
 
 /**
  * ツイートが画像、動画、GIFのいずれかのメディアを含むかどうかを判定
  */
-export function hasPicOrVideo(tweet: Tweet): boolean {
-    const tweetResult = tweet.content.itemContent.tweet_results.result;
-    const legacy = tweetResult.legacy || tweetResult.tweet?.legacy;
-    if (!legacy) return false;
+// function hasPicOrVideo(legacy?: Legacy): boolean {
+//     if (!legacy) return false;
 
-    // メディアを取得（extended_entitiesを優先）
-    const media = legacy.extended_entities?.media || legacy.entities?.media || [];
-    const mediaInRt = legacy.retweeted_status_result?.result?.legacy?.extended_entities?.media || [];
+//     // メディアを取得（extended_entitiesを優先）
+//     const media = legacy.extended_entities?.media || legacy.entities?.media || [];
+//     const mediaInRt = legacy.retweeted_status_result?.result?.legacy?.extended_entities?.media || [];
 
-    // メディアが存在し、かつphoto/video/animated_gifのいずれかを含む
-    return [...media, ...mediaInRt].some(m => ['photo', 'video', 'animated_gif'].includes(m.type));
+//     // メディアが存在し、かつphoto/video/animated_gifのいずれかを含む
+//     return [...media, ...mediaInRt].some(m => ['photo', 'video', 'animated_gif'].includes(m.type));
+// }
+
+function isQuated(tweetResult: Result | undefined): boolean {
+    try {
+        if (!tweetResult) return false;
+        return Boolean(tweetResult?.quoted_status_result?.result);
+    } catch (error) {
+        console.error('Error checking quoted status:', error);
+        return false;
+    }
 }
 
 /**
  * ツイートがリツイートかどうかを判定
  */
-export function isRetweet(tweet: Tweet): boolean {
-    const tweetResult = tweet.content.itemContent.tweet_results?.result;
-
-    return tweetResult.legacy?.retweeted_status_result !== undefined
-        || tweetResult.tweet?.legacy?.retweeted_status_result !== undefined;
+function isRetweet(legacy?: Legacy): boolean {
+    return legacy?.retweeted_status_result !== undefined
+        || legacy?.retweeted_status_result !== undefined;
 }
 
 export function extractCursor(data: any): string {
@@ -690,7 +716,7 @@ export async function getTimelineUrls(userId: string, containRepost: boolean): P
         .map(tweet => tweet.url);
 }
 
-async function getTimelineTweetInfo(userId: string, containRepost: boolean): Promise<TweetInfo[]> {
+export async function getTimelineTweetInfo(userId: string, containRepost: boolean): Promise<TweetInfo[]> {
     const DESIRED_COUNT = 20;
     const authToken = process.env.AUTH_TOKEN;
     if (!authToken) {
@@ -727,7 +753,7 @@ async function getTimelineTweetInfo(userId: string, containRepost: boolean): Pro
     return allTweetInfos.slice(0, DESIRED_COUNT);
 }
 
-async function fetchUserTweetsAsync(authToken: string, userId: string, cursor: string = ""): Promise<Response> {
+export async function fetchUserTweetsAsync(authToken: string, userId: string, cursor: string = ""): Promise<Response> {
     // CSRFトークンの生成
     const csrfToken = generateRandomHexString(16);
 
