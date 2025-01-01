@@ -320,47 +320,13 @@ app.get('/api/user-by-screen-name', async (c) => {
       throw new Error("AUTH_TOKEN is not defined");
     }
 
-    const csrfToken = generateRandomHexString(16);
     const screenName = c.req.query('screen_name');
 
     if (!screenName) {
       return c.json({ error: 'screen_name parameter is required' }, 400);
     }
 
-    const searchParams = new URLSearchParams({
-      "variables": JSON.stringify({
-        "screen_name": screenName,
-        "withSafetyModeUserFields": true,
-      }),
-      "features": JSON.stringify({
-        "hidden_profile_likes_enabled": true,
-        "hidden_profile_subscriptions_enabled": true,
-        "responsive_web_graphql_exclude_directive_enabled": true,
-        "verified_phone_label_enabled": false,
-        "subscriptions_verification_info_is_identity_verified_enabled": true,
-        "subscriptions_verification_info_verified_since_enabled": true,
-        "highlights_tweets_tab_ui_enabled": true,
-        "responsive_web_twitter_article_notes_tab_enabled": true,
-        "creator_subscriptions_tweet_preview_api_enabled": true,
-        "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
-        "responsive_web_graphql_timeline_navigation_enabled": true,
-      }),
-      "fieldToggles": JSON.stringify({
-        "withAuxiliaryUserLabels": false,
-      }),
-    });
-
-    const response = await fetch(
-      `https://api.twitter.com/graphql/k5XapwcSikNsEsILW5FvgA/UserByScreenName?${searchParams}`,
-      {
-        headers: {
-          Authorization:
-            "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-          Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
-          "X-Csrf-Token": csrfToken,
-        },
-      }
-    );
+    const response = await fetchUserByScreenNameAsync(screenName);
 
     if (!response.ok) {
       throw new Error(`Twitter API returned status: ${response.status}`);

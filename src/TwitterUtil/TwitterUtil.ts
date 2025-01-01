@@ -2,7 +2,6 @@ import { StatusCode } from "hono/utils/http-status";
 import { expandUrl } from "../UrlUtil";
 import { generateRandomHexString } from "../FunctionUtil";
 import { CheckStatus } from "../types/Types";
-import prisma from "../db";
 import { CheckHistoryService } from "../service/CheckHistoryService";
 
 interface CheckResult {
