@@ -209,6 +209,14 @@ app.get('/api/check-by-user', async (c: Context) => {
       })
     }
 
+    if (user.result.legacy.protected === true) {
+      return c.json({
+        ...result,
+        protect: true,
+        user: user.result,
+      })
+    }
+
     const userScreenName = user.result.legacy.screen_name; // 大文字・小文字などの表記を合わせるため取得した値を使用
 
     monitor.startOperation('fetchSearchTimeline');
@@ -263,7 +271,6 @@ app.get('/api/check-by-user', async (c: Context) => {
 
     return c.json({
       ...result,
-      protect: user.result.legacy.protected || false,
       no_tweet: !user.result.legacy.statuses_count,
       search_ban: searchBanFlag,
       search_suggestion_ban: searchSuggestionBanFlag,
