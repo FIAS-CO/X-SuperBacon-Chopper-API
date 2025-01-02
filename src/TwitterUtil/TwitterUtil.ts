@@ -9,20 +9,28 @@ interface CheckResult {
     code: number;
     status: string;
     message: string;
-    tweetDate?: string;
+    tweetDate: string;
+    isPinned: boolean;
 }
 
-export async function batchCheckTweets(urls: string[], ip: string, sessionId: string, withShadowBanCheck: boolean = false): Promise<CheckResult[]> {
+export async function batchCheckTweetUrls(urls: string[], ip: string, sessionId: string, withShadowBanCheck: boolean = false): Promise<CheckResult[]> {
+    const tweetInfos: TweetInfo[] = urls.map(url =>
+        ({ url: url, isRetweet: false, isQuated: false, hasMedia: false, isPinned: false }));
+    return batchCheckTweets(tweetInfos, ip, sessionId, withShadowBanCheck);
+}
+
+export async function batchCheckTweets(tweetInfos: TweetInfo[], ip: string, sessionId: string, withShadowBanCheck: boolean = false): Promise<CheckResult[]> {
     const BATCH_SIZE = 5;
-    const results = [];
+    const results: CheckResult[] = [];
 
     // URLsを5個ずつの配列に分割
-    for (let i = 0; i < urls.length; i += BATCH_SIZE) {
-        const batch = urls.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < tweetInfos.length; i += BATCH_SIZE) {
+        const batch = tweetInfos.slice(i, i + BATCH_SIZE);
 
         // 各バッチを並列処理
-        const batchResults = await Promise.all(
-            batch.map(async (inputUrl) => {
+        const batchResults: CheckResult[] = await Promise.all(
+            batch.map(async (info) => {
+                const inputUrl = info.url;
                 try {
                     if (!inputUrl) {
                         return {
@@ -30,7 +38,8 @@ export async function batchCheckTweets(urls: string[], ip: string, sessionId: st
                             status: 'INVALID_URL' as const,
                             message: 'URL parameter is required',
                             url: inputUrl,
-                            tweetDate: ''
+                            tweetDate: '',
+                            isPinned: false
                         };
                     }
 
@@ -44,8 +53,11 @@ export async function batchCheckTweets(urls: string[], ip: string, sessionId: st
                     // 履歴作成は後でバッチ処理する
                     return {
                         url: inputUrl,
-                        tweetDate,
-                        ...statusResult
+                        code: statusResult.code,
+                        status: statusResult.status,
+                        message: statusResult.message,
+                        tweetDate: tweetDate,
+                        isPinned: info.isPinned
                     };
                 } catch (error) {
                     console.error('Error checking URL:', inputUrl, error);
@@ -54,7 +66,8 @@ export async function batchCheckTweets(urls: string[], ip: string, sessionId: st
                         code: 500,
                         status: 'UNKNOWN' as const,
                         message: 'Internal server error',
-                        tweetDate: ''
+                        tweetDate: '',
+                        isPinned: false
                     };
                 }
             })
@@ -581,36 +594,63 @@ interface TweetInfo {
     isRetweet: boolean; // リツイートかどうか
     isQuated: boolean;
     hasMedia: boolean; // 画像/動画/GIFを含むかどうか
+    isPinned: boolean;
 }
 
-interface Instruction {
-    type: string;
+interface AddInstruction extends Instraction {
     entries?: Tweet[];
+}
+
+interface PinInstruction extends Instraction {
+    entry: Tweet;
+}
+
+interface Instraction {
+    type: string;
 }
 
 /**
  * タイムラインデータからツイート情報を抽出する補助関数
  */
 function extractTweetInfos(data: any): TweetInfo[] {
-    try {
-        const instructions: Instruction[] = data?.data?.user?.result?.timeline_v2?.timeline?.instructions || [];
-        const targetInstruction = instructions.find(
-            instruction => instruction.type === "TimelineAddEntries"
-        );
+    const tweetInfos: TweetInfo[] = [];
 
-        if (!targetInstruction) {
+    try {
+        const instructions: Instraction[] = data?.data?.user?.result?.timeline_v2?.timeline?.instructions || [];
+
+        const timelinePinInstruction = instructions.find(
+            instruction => instruction.type === "TimelinePinEntry"
+        ) as PinInstruction;
+
+        if (timelinePinInstruction?.entry) {
+            pushPinnedTweet(timelinePinInstruction.entry);
+        }
+
+        const timelineAddInstruction = instructions.find(
+            instruction => instruction.type === "TimelineAddEntries"
+        ) as AddInstruction;
+
+        if (timelineAddInstruction?.entries) {
+            timelineAddInstruction.entries.forEach(tweet => {
+                pushTweet(tweet);
+            });
+        }
+
+        return tweetInfos;
+    } catch (error) {
+        console.error('Error extracting tweet infos:', error);
             return [];
         }
 
-        const timelineAddEntries = targetInstruction.entries || [];
-        const tweetInfos: TweetInfo[] = [];
+    function pushPinnedTweet(tweet: Tweet) {
+        pushTweet(tweet, true);
+    }
 
-        for (const entry of timelineAddEntries) {
-            const tweet = entry as Tweet;
+    function pushTweet(tweet: Tweet, pinned = false) {
             if (tweet.content?.entryType === "TimelineTimelineItem") {
                 const tweetResult = tweet?.content?.itemContent?.tweet_results?.result;
                 if (tweetResult) {
-                    pushTweetInfo(tweetResult, tweetInfos);
+                pushTweetInfo(tweetResult, pinned);
                 }
             } else if (tweet.content?.entryType === "TimelineTimelineModule") {
                 const items: Item[] = tweet?.content?.items;
@@ -618,19 +658,13 @@ function extractTweetInfos(data: any): TweetInfo[] {
                 items.forEach(item => {
                     const tweetResult = item.item.itemContent.tweet_results?.result;
                     if (tweetResult && tweetResult.__typename === "Tweet") {
-                        pushTweetInfo(tweetResult, tweetInfos);
+                    pushTweetInfo(tweetResult, pinned);
                     }
                 });
             }
         }
 
-        return tweetInfos;
-    } catch (error) {
-        console.error('Error extracting tweet infos:', error);
-        return [];
-    }
-
-    function pushTweetInfo(tweetResult: TweetResult, tweetInfos: TweetInfo[]) {
+    function pushTweetInfo(tweetResult: TweetResult, pinned = false) {
         try {
             const core = tweetResult.core || tweetResult.tweet?.core;
             const userResultLegacy = core?.user_results.result.legacy;
@@ -645,13 +679,15 @@ function extractTweetInfos(data: any): TweetInfo[] {
                 isRetweet: isRetweet(tweetResult),
                 isQuated: isQuated(tweetResult),
                 hasMedia: false,
+                isPinned: pinned,
             });
         } catch (error) {
             tweetInfos.push({
                 url: `https://x.com/unknown/status/unknown`,
                 isRetweet: false,
                 isQuated: false,
-                hasMedia: false
+                hasMedia: false,
+                isPinned: pinned,
             });
         }
     }
@@ -696,7 +732,7 @@ function isRetweet(tweetResult?: TweetResult): boolean {
 
 export function extractCursor(data: any): string {
     try {
-        const instructions: Instruction[] = data?.data?.user?.result?.timeline_v2?.timeline?.instructions || [];
+        const instructions: AddInstruction[] = data?.data?.user?.result?.timeline_v2?.timeline?.instructions || [];
 
         const targetInstruction = instructions.find(
             instruction => instruction.type === "TimelineAddEntries"

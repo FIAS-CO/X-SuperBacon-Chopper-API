@@ -7,7 +7,8 @@ import {
   batchCheckTweets,
   fetchUserId,
   fetchUserTweetsAsync,
-  getTimelineTweetInfo
+  getTimelineTweetInfo,
+  batchCheckTweetUrls
 } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
@@ -75,7 +76,7 @@ app.post('/api/check-batch', async (c: Context) => {
     const sessionId = generateRandomHexString(16);
 
     // Process URLs in parallel using Promise.all
-    const results = await batchCheckTweets(urls, ip, sessionId);
+    const results = await batchCheckTweetUrls(urls, ip, sessionId);
 
     return c.json({
       results: results,
@@ -257,12 +258,12 @@ app.get('/api/check-by-user', async (c: Context) => {
       monitor.endOperation('fetchUserId');
 
       monitor.startOperation('fetchTimelineUrls');
-      const urls = await getTimelineUrls(userId, checkRepost);
+      const tweetInfos = await getTimelineTweetInfo(userId, checkRepost);
       monitor.endOperation('fetchTimelineUrls');
 
       monitor.startOperation('batchCheckTweets');
       const sessionId = generateRandomHexString(16);
-      const tweets = await batchCheckTweets(urls, ip, sessionId, true);
+      const tweets = await batchCheckTweets(tweetInfos, ip, sessionId, true);
       monitor.endOperation('batchCheckTweets');
       return tweets;
     })() : undefined;
