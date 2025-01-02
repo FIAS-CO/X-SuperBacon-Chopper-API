@@ -89,8 +89,8 @@ export async function batchCheckTweets(tweetInfos: TweetInfo[], ip: string, sess
     const service = new CheckHistoryService();
     // DBへの書き込みは非同期で行う
     Promise.all(
-        histories.map(history =>
-            service.createCheckHistory(
+        histories.map(async history =>
+            await service.createCheckHistory(
                 history.username,
                 history.url,
                 history.status,
@@ -639,30 +639,30 @@ function extractTweetInfos(data: any): TweetInfo[] {
         return tweetInfos;
     } catch (error) {
         console.error('Error extracting tweet infos:', error);
-            return [];
-        }
+        return [];
+    }
 
     function pushPinnedTweet(tweet: Tweet) {
         pushTweet(tweet, true);
     }
 
     function pushTweet(tweet: Tweet, pinned = false) {
-            if (tweet.content?.entryType === "TimelineTimelineItem") {
-                const tweetResult = tweet?.content?.itemContent?.tweet_results?.result;
-                if (tweetResult) {
+        if (tweet.content?.entryType === "TimelineTimelineItem") {
+            const tweetResult = tweet?.content?.itemContent?.tweet_results?.result;
+            if (tweetResult) {
                 pushTweetInfo(tweetResult, pinned);
-                }
-            } else if (tweet.content?.entryType === "TimelineTimelineModule") {
-                const items: Item[] = tweet?.content?.items;
-
-                items.forEach(item => {
-                    const tweetResult = item.item.itemContent.tweet_results?.result;
-                    if (tweetResult && tweetResult.__typename === "Tweet") {
-                    pushTweetInfo(tweetResult, pinned);
-                    }
-                });
             }
+        } else if (tweet.content?.entryType === "TimelineTimelineModule") {
+            const items: Item[] = tweet?.content?.items;
+
+            items.forEach(item => {
+                const tweetResult = item.item.itemContent.tweet_results?.result;
+                if (tweetResult && tweetResult.__typename === "Tweet") {
+                    pushTweetInfo(tweetResult, pinned);
+                }
+            });
         }
+    }
 
     function pushTweetInfo(tweetResult: TweetResult, pinned = false) {
         try {
