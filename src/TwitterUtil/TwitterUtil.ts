@@ -618,21 +618,13 @@ function extractTweetInfos(data: any): TweetInfo[] {
     try {
         const instructions: Instraction[] = data?.data?.user?.result?.timeline_v2?.timeline?.instructions || [];
 
-        const timelinePinInstruction = instructions.find(
-            instruction => instruction.type === "TimelinePinEntry"
-        ) as PinInstruction;
-
-        if (timelinePinInstruction?.entry) {
-            pushPinnedTweet(timelinePinInstruction.entry);
-        }
-
         const timelineAddInstruction = instructions.find(
             instruction => instruction.type === "TimelineAddEntries"
         ) as AddInstruction;
 
         if (timelineAddInstruction?.entries) {
             timelineAddInstruction.entries.forEach(tweet => {
-                pushTweet(tweet);
+                pushTweet(tweetInfos, tweet);
             });
         }
 
@@ -642,54 +634,77 @@ function extractTweetInfos(data: any): TweetInfo[] {
         return [];
     }
 
-    function pushPinnedTweet(tweet: Tweet) {
-        pushTweet(tweet, true);
+}
+
+function extractPinnedTweetInfos(data: any): TweetInfo[] {
+    const tweetInfos: TweetInfo[] = [];
+
+    try {
+        const instructions: Instraction[] = data?.data?.user?.result?.timeline_v2?.timeline?.instructions || [];
+
+        const timelinePinInstruction = instructions.find(
+            instruction => instruction.type === "TimelinePinEntry"
+        ) as PinInstruction;
+
+        if (timelinePinInstruction?.entry) {
+            pushPinnedTweet(tweetInfos, timelinePinInstruction.entry);
+        }
+
+        return tweetInfos;
+    } catch (error) {
+        console.error('Error extracting tweet infos:', error);
+        return [];
     }
 
-    function pushTweet(tweet: Tweet, pinned = false) {
-        if (tweet.content?.entryType === "TimelineTimelineItem") {
-            const tweetResult = tweet?.content?.itemContent?.tweet_results?.result;
-            if (tweetResult) {
-                pushTweetInfo(tweetResult, pinned);
+}
+
+function pushPinnedTweet(tweetInfos: TweetInfo[], tweet: Tweet) {
+    pushTweet(tweetInfos, tweet, true);
+}
+
+function pushTweet(tweetInfos: TweetInfo[], tweet: Tweet, pinned = false) {
+    if (tweet.content?.entryType === "TimelineTimelineItem") {
+        const tweetResult = tweet?.content?.itemContent?.tweet_results?.result;
+        if (tweetResult) {
+            pushTweetInfo(tweetInfos, tweetResult, pinned);
+        }
+    } else if (tweet.content?.entryType === "TimelineTimelineModule") {
+        const items: Item[] = tweet?.content?.items;
+
+        items.forEach(item => {
+            const tweetResult = item.item.itemContent.tweet_results?.result;
+            if (tweetResult && tweetResult.__typename === "Tweet") {
+                pushTweetInfo(tweetInfos, tweetResult, pinned);
             }
-        } else if (tweet.content?.entryType === "TimelineTimelineModule") {
-            const items: Item[] = tweet?.content?.items;
-
-            items.forEach(item => {
-                const tweetResult = item.item.itemContent.tweet_results?.result;
-                if (tweetResult && tweetResult.__typename === "Tweet") {
-                    pushTweetInfo(tweetResult, pinned);
-                }
-            });
-        }
+        });
     }
+}
 
-    function pushTweetInfo(tweetResult: TweetResult, pinned = false) {
-        try {
-            const core = tweetResult.core || tweetResult.tweet?.core;
-            const userResultLegacy = core?.user_results.result.legacy;
-            const screenName = userResultLegacy?.screen_name;
+function pushTweetInfo(tweetInfos: TweetInfo[], tweetResult: TweetResult, pinned = false) {
+    try {
+        const core = tweetResult.core || tweetResult.tweet?.core;
+        const userResultLegacy = core?.user_results.result.legacy;
+        const screenName = userResultLegacy?.screen_name;
 
-            const tweetId = tweetResult.rest_id || tweetResult.tweet?.rest_id;
+        const tweetId = tweetResult.rest_id || tweetResult.tweet?.rest_id;
 
-            const url = `https://x.com/${screenName}/status/${tweetId}`;
+        const url = `https://x.com/${screenName}/status/${tweetId}`;
 
-            tweetInfos.push({
-                url: url,
-                isRetweet: isRetweet(tweetResult),
-                isQuated: isQuated(tweetResult),
-                hasMedia: false,
-                isPinned: pinned,
-            });
-        } catch (error) {
-            tweetInfos.push({
-                url: `https://x.com/unknown/status/unknown`,
-                isRetweet: false,
-                isQuated: false,
-                hasMedia: false,
-                isPinned: pinned,
-            });
-        }
+        tweetInfos.push({
+            url: url,
+            isRetweet: isRetweet(tweetResult),
+            isQuated: isQuated(tweetResult),
+            hasMedia: false,
+            isPinned: pinned,
+        });
+    } catch (error) {
+        tweetInfos.push({
+            url: `https://x.com/unknown/status/unknown`,
+            isRetweet: false,
+            isQuated: false,
+            hasMedia: false,
+            isPinned: pinned,
+        });
     }
 }
 
@@ -771,6 +786,7 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
     let allTweetInfos: TweetInfo[] = [];
     let cursor: string = "";
 
+    var isFirstTime = true;
     while (allTweetInfos.length < DESIRED_COUNT) {
         // API呼び出し
         const response = await fetchUserTweetsAsync(authToken, userId, cursor);
@@ -779,6 +795,12 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
         }
 
         const data = await response.json();
+
+        if (isFirstTime) {
+            allTweetInfos = [...allTweetInfos, ...extractPinnedTweetInfos(data)]
+        }
+        isFirstTime = false;
+
         const newTweetInfos = extractTweetInfos(data)
             .filter(tweet => containRepost || (!tweet.isRetweet && !tweet.isQuated));
 
