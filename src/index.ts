@@ -17,6 +17,7 @@ import { getTimelineUrls } from "./TwitterUtil/TwitterUtil"
 import { serverDecryption } from './util/ServerDecryption'
 import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
+import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
 
 type Bindings = {}
 
@@ -144,7 +145,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
   }
 })
 
-interface ShadowBanCheckResult {
+export interface ShadowBanCheckResult {
   not_found: boolean;
   suspend: boolean;
   protect: boolean;
@@ -195,27 +196,40 @@ app.get('/api/check-by-user', async (c: Context) => {
       user: null,
     }
 
+    const service = new ShadowbanHistoryService();
+
+    const sessionId = generateRandomHexString(16);
+
     if (!user) {
-      return c.json({
+      result = {
         ...result,
         not_found: true,
-      })
+      };
+      await service.createHistory(screenName, result, sessionId);
+
+      return c.json(result)
     }
 
     if (user.result.__typename !== "User") {
-      return c.json({
+      result = {
         ...result,
         suspend: true,
         user: user.result,
-      })
+      };
+      await service.createHistory(screenName, result, sessionId);
+
+      return c.json(result)
     }
 
     if (user.result.legacy.protected === true) {
-      return c.json({
+      result = {
         ...result,
         protect: true,
         user: user.result,
-      })
+      };
+      await service.createHistory(screenName, result, sessionId);
+
+      return c.json(result)
     }
 
     const userScreenName = user.result.legacy.screen_name; // 大文字・小文字などの表記を合わせるため取得した値を使用
@@ -262,7 +276,6 @@ app.get('/api/check-by-user', async (c: Context) => {
       monitor.endOperation('fetchTimelineUrls');
 
       monitor.startOperation('batchCheckTweets');
-      const sessionId = generateRandomHexString(16);
       const tweets = await batchCheckTweets(tweetInfos, ip, sessionId, true);
       monitor.endOperation('batchCheckTweets');
       return tweets;
@@ -270,11 +283,16 @@ app.get('/api/check-by-user', async (c: Context) => {
 
     const timings = monitor.getTimings();
 
-    return c.json({
+    result = {
       ...result,
       no_tweet: !user.result.legacy.statuses_count,
       search_ban: searchBanFlag,
       search_suggestion_ban: searchSuggestionBanFlag,
+    };
+    await service.createHistory(screenName, result, sessionId);
+
+    return c.json({
+      ...result,
       user: user.result,
       tweets: checkedTweets,
       _debug: {

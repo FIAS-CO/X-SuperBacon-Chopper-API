@@ -27,3 +27,20 @@ model TwitterCheck {
   @@index([username])
   @@index([date])
 }
+
+model ShadowBanCheck {
+  id                    Int       @id @default(autoincrement())
+  screen_name          String    // @以降のユーザー名
+  not_found            Boolean   @default(false)  // ユーザーが存在しないかどうか
+  suspend              Boolean   @default(false)  // アカウントが凍結されているかどうか
+  protect              Boolean   @default(false)  // 鍵アカウントかどうか
+  search_ban           Boolean   @default(false)  // 検索バンの状態
+  search_suggestion_ban Boolean   @default(false)  // 検索サジェストバンの状態
+  ghost_ban            Boolean   @default(false)  // ゴーストバンの状態
+  reply_deboosting     Boolean   @default(false)  // リプライデブーストの状態
+  sessionId            String    // 検索除外チェックと同じID
+  date                 DateTime  @default(now())  // チェック実施日時
+
+  @@index([screen_name])
+  @@index([date])
+}
