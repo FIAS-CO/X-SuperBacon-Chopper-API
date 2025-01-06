@@ -292,15 +292,15 @@ app.get('/api/check-by-user', async (c: Context) => {
       }
     }
 
-    const userNameText = user.result.legacy.name;
-
-    monitor.startOperation('fetchSearchSuggestion');
-    const searchSuggestionUsers = await fetchSearchSuggestionAsync(screenName, userNameText);
-    monitor.endOperation('fetchSearchSuggestion');
-
-    const searchSuggestionBanFlag = !searchSuggestionUsers.some(
-      (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === userScreenName
-    );
+    const searchSuggestionBanFlag = searchBanFlag || await (async () => {
+      const userNameText = user.result.legacy.name;
+      monitor.startOperation('fetchSearchSuggestion');
+      const searchSuggestionUsers = await fetchSearchSuggestionAsync(screenName, userNameText);
+      monitor.endOperation('fetchSearchSuggestion');
+      return !searchSuggestionUsers.some(
+        (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === userScreenName
+      );
+    })();
 
     var checkedTweets = checkSearchBan ? await (async () => {
       monitor.startOperation('fetchUserId');
