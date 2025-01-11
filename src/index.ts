@@ -19,6 +19,7 @@ import { PerformanceMonitor } from './util/PerformanceMonitor'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
 import { fetchAuthToken } from './TwitterUtil/TwitterAuthUtil'
 import { authTokenService, TwitterAuthTokenService } from './service/TwitterAuthTokenService'
+import { TokenRefreshCronService } from './service/AuthTokenRefreshCronService'
 
 type Bindings = {}
 
@@ -697,6 +698,16 @@ app.get('/api/fetch-auth-token', async (c) => {
 
 const port = 3001
 console.log(`Server is running on port ${port}`)
+
+// CRONジョブを開始
+TokenRefreshCronService.startTokenRefreshCron();
+
+// プロセス終了時にCRONジョブを停止
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Stopping cron jobs...');
+  TokenRefreshCronService.stopAllCronJobs();
+  process.exit(0);
+});
 
 serve({
   fetch: app.fetch,
