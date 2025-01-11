@@ -13,11 +13,11 @@ import {
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
 import { generateRandomHexString } from './FunctionUtil'
-import { getTimelineUrls } from "./TwitterUtil/TwitterUtil"
 import { serverDecryption } from './util/ServerDecryption'
 import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
+import { fetchAuthToken } from './TwitterUtil/TwitterAuthUtil'
 
 type Bindings = {}
 
@@ -303,6 +303,7 @@ app.get('/api/check-by-user', async (c: Context) => {
     })();
 
     var checkedTweets = checkSearchBan ? await (async () => {
+      try {
       monitor.startOperation('fetchUserId');
       const userId = await fetchUserId(screenName);
       monitor.endOperation('fetchUserId');
@@ -315,6 +316,10 @@ app.get('/api/check-by-user', async (c: Context) => {
       const tweets = await batchCheckTweets(tweetInfos, ip, sessionId, true);
       monitor.endOperation('batchCheckTweets');
       return tweets;
+      } catch (error) {
+        console.error('Error checking tweets:', error);
+        return [];
+      }
     })() : undefined;
 
     const timings = monitor.getTimings();
