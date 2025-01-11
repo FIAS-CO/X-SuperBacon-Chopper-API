@@ -10,7 +10,10 @@ export async function fetchAuthToken(userId: string, password: string): Promise<
     });
 
     const page = await browser.newPage();
-    page.setDefaultTimeout(30000);
+    await page.setExtraHTTPHeaders({
+        'Accept-Language': 'ja-JP'  // HTTPヘッダーでも言語を指定
+    });
+    page.setDefaultTimeout(10000);
 
     try {
         // ログインページに遷移
