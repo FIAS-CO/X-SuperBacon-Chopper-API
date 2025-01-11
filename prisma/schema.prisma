@@ -44,3 +44,9 @@ model ShadowBanCheck {
   @@index([screen_name])
   @@index([date])
 }
+
+model TwitterAuthToken {
+  id        Int      @id @default(1) // 常に1つのレコードのみ
+  token     String
+  updatedAt DateTime @updatedAt
+}

@@ -18,6 +18,7 @@ import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
 import { fetchAuthToken } from './TwitterUtil/TwitterAuthUtil'
+import { TwitterAuthTokenService } from './service/TwitterAuthTokenService'
 
 type Bindings = {}
 
@@ -304,18 +305,18 @@ app.get('/api/check-by-user', async (c: Context) => {
 
     var checkedTweets = checkSearchBan ? await (async () => {
       try {
-      monitor.startOperation('fetchUserId');
-      const userId = await fetchUserId(screenName);
-      monitor.endOperation('fetchUserId');
+        monitor.startOperation('fetchUserId');
+        const userId = await fetchUserId(screenName);
+        monitor.endOperation('fetchUserId');
 
-      monitor.startOperation('fetchTimelineUrls');
-      const tweetInfos = await getTimelineTweetInfo(userId, checkRepost);
-      monitor.endOperation('fetchTimelineUrls');
+        monitor.startOperation('fetchTimelineUrls');
+        const tweetInfos = await getTimelineTweetInfo(userId, checkRepost);
+        monitor.endOperation('fetchTimelineUrls');
 
-      monitor.startOperation('batchCheckTweets');
-      const tweets = await batchCheckTweets(tweetInfos, ip, sessionId, true);
-      monitor.endOperation('batchCheckTweets');
-      return tweets;
+        monitor.startOperation('batchCheckTweets');
+        const tweets = await batchCheckTweets(tweetInfos, ip, sessionId, true);
+        monitor.endOperation('batchCheckTweets');
+        return tweets;
       } catch (error) {
         console.error('Error checking tweets:', error);
         return [];
@@ -376,6 +377,38 @@ app.get('/api/searchtimeline', async (c: Context) => {
     }, 500)
   }
 })
+
+app.get('/api/save-auth-token', async (c) => {
+  try {
+    const authTokenService = new TwitterAuthTokenService();
+
+    // まず既存のトークンを取得
+    const currentToken = await authTokenService.getCurrentToken();
+
+    // 新しいトークンを取得
+    const newToken = await fetchAuthToken(
+      process.env.X_ACCOUNT || '',
+      process.env.X_PASSWORD || ''
+    );
+
+    // 既存のトークンと新しいトークンが異なる場合のみ更新
+    if (!currentToken || currentToken !== newToken) {
+      await authTokenService.saveToken(newToken);
+    }
+
+    return c.json({
+      old_token: currentToken,
+      new_token: newToken,
+      is_updated: currentToken !== newToken
+    });
+  } catch (error) {
+    console.error('Error fetching auth token:', error);
+    return c.json({
+      error: 'Failed to fetch auth token',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
 
 //---
 //以下テスト用
@@ -641,6 +674,22 @@ app.get('/api/tweet-detail', async (c) => {
     console.error('Error:', error);
     return c.json({
       error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
+app.get('/api/fetch-auth-token', async (c) => {
+  try {
+    const token = await fetchAuthToken(
+      process.env.X_ACCOUNT || '',
+      process.env.X_PASSWORD || ''
+    );
+    return c.json({ token });
+  } catch (error) {
+    console.error('Error fetching auth token:', error);
+    return c.json({
+      error: 'Failed to fetch auth token',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }
