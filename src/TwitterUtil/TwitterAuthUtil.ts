@@ -1,10 +1,6 @@
 import puppeteer from "puppeteer";
 
 export async function fetchAuthToken(userId: string, password: string): Promise<string> {
-    if (!userId || !password) {
-        throw new Error('Credentials not configured');
-    }
-
     const browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox']
@@ -20,11 +16,23 @@ export async function fetchAuthToken(userId: string, password: string): Promise<
         await page.type('input[autocomplete="username"]', userId);
 
         await page.waitForSelector('[role="button"]');
-        await page.evaluate(() => {
+        const clicked = await page.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('[role="button"]'));
             const nextButton = buttons.find(button => button.textContent?.includes('次へ'));
-            if (nextButton && nextButton instanceof HTMLElement) nextButton.click();
+            if (nextButton && nextButton instanceof HTMLElement) {
+                nextButton.click();
+                return true;
+            }
+            return false;
         });
+
+        if (!clicked) {
+            throw new Error('Failed to click next button');
+        }
+
+        // 次へボタンクリック後のHTMLを保存
+        const html = await page.content();
+        await writeFile('login-page-after-next.html', html);
 
         await page.waitForSelector('input[name="password"]');
         await page.type('input[name="password"]', password);
@@ -43,3 +51,6 @@ export async function fetchAuthToken(userId: string, password: string): Promise<
         await browser.close();
     }
 }
+
+// Node.jsのfsモジュールを使用してファイルに書き込む
+import { writeFile } from 'fs/promises';
