@@ -697,6 +697,32 @@ app.get('/api/fetch-auth-token', async (c) => {
   }
 });
 
+app.get('/api/auth-token-info', async (c) => {
+  try {
+    const entry = await prisma.twitterAuthToken.findUnique({
+      where: {
+        id: 1
+      }
+    });
+
+    if (!entry) {
+      return c.json({ error: 'Token not found' }, 404);
+    }
+
+    return c.json({
+      id: entry.id,
+      token: entry.token,
+      updatedAt: entry.updatedAt
+    });
+  } catch (error) {
+    console.error('Error fetching auth token info:', error);
+    return c.json({
+      error: 'Failed to fetch auth token info',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
 const port = 3001
 console.log(`Server is running on port ${port}`)
 
