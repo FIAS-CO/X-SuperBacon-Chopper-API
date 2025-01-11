@@ -3,7 +3,10 @@ import puppeteer from "puppeteer";
 export async function fetchAuthToken(userId: string, password: string): Promise<string> {
     const browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox']
+        args: [
+            '--no-sandbox',
+            '--lang=ja-JP'  // 日本語に設定
+        ]
     });
 
     const page = await browser.newPage();
