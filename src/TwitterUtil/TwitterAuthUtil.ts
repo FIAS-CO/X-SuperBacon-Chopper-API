@@ -2,30 +2,44 @@ import puppeteer from "puppeteer";
 
 export async function fetchAuthToken(userId: string, password: string): Promise<string> {
     const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox']
+        headless: false, // headlessをfalseにして実際のブラウザを表示
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--proxy-server=your-vpn-proxy' // VPNプロキシを指定
+        ]
     });
-
     const page = await browser.newPage();
     page.setDefaultTimeout(30000);
 
     try {
-        // ログインページに遷移
-        await page.goto('https://x.com/login');
-
-        // この時点のHTMLを保存して確認
-        const toppageHtml = await page.content();
+        // デバッグ用のスクリーンショット保存ディレクトリ作成
         const debugDir = join(process.cwd(), 'debug-output');
         await mkdir(debugDir, { recursive: true });
-        await writeFile(join(debugDir, 'login-page-initial.html'), toppageHtml);
 
-        await page.waitForSelector('input[autocomplete="username"]');
+        // ログインページに遷移
+        await page.goto('https://x.com/login', {
+            waitUntil: 'networkidle0', // ネットワーク接続が落ち着くまで待機
+            timeout: 60000 // タイムアウトを延長
+        });
+
+        // 各段階でスクリーンショットを取得
+        await page.screenshot({ path: join(debugDir, 'login-page-initial.png') });
+
+        // ユーザー名入力
+        await page.waitForSelector('input[autocomplete="username"]', { timeout: 30000 });
         await page.type('input[autocomplete="username"]', userId);
+        await page.screenshot({ path: join(debugDir, 'after-username-input.png') });
 
-        await page.waitForSelector('[role="button"]');
-        const clicked = await page.evaluate(() => {
+        // 次へボタンクリック処理
+        await page.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('[role="button"]'));
-            const nextButton = buttons.find(button => button.textContent?.includes('次へ') || button.textContent?.includes('Next'));
+            const nextButton = buttons.find(button =>
+                button.classList.contains('r-sdzlij') &&
+                button.classList.contains('r-1phboty') &&
+                button.classList.contains('r-lrvibr')
+            );
+
             if (nextButton && nextButton instanceof HTMLElement) {
                 nextButton.click();
                 return true;
@@ -33,15 +47,22 @@ export async function fetchAuthToken(userId: string, password: string): Promise<
             return false;
         });
 
-        if (!clicked) {
-            throw new Error('Failed to click next button');
-        }
+        // スクリーンショット
+        await page.screenshot({ path: join(debugDir, 'after-next-button.png') });
 
-        // 次へボタンクリック後のHTMLを保存
-        const html = await page.content();
-        await writeFile('login-page-after-next.html', html);
+        // 追加のデバッグ情報
+        const pageContent = await page.content();
+        await writeFile(join(debugDir, 'page-content.html'), pageContent);
 
-        await page.waitForSelector('input[name="password"]');
+        // ログ出力
+        page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+        page.on('pageerror', err => console.log('PAGE ERROR:', err));
+
+        // パスワード入力フィールドを待機（タイムアウトを延長）
+        await page.waitForSelector('input[name="password"]', {
+            timeout: 30000,
+            visible: true
+        });
         await page.type('input[name="password"]', password);
         await page.click('button[data-testid="LoginForm_Login_Button"]');
 
@@ -54,6 +75,15 @@ export async function fetchAuthToken(userId: string, password: string): Promise<
         }
 
         return authToken.value;
+    } catch (error) {
+        // エラー詳細を詳しく出力
+        console.error('Detailed Error:', error);
+
+        // スクリーンショットを取得してエラーの状況を保存
+        const errorScreenshotPath = join(process.cwd(), 'debug-output', 'error-screenshot.png');
+        await page.screenshot({ path: errorScreenshotPath });
+
+        throw error;
     } finally {
         await browser.close();
     }
