@@ -10,7 +10,14 @@ export async function fetchAuthToken(userId: string, password: string): Promise<
     page.setDefaultTimeout(30000);
 
     try {
+        // ログインページに遷移
         await page.goto('https://x.com/login');
+
+        // この時点のHTMLを保存して確認
+        const toppageHtml = await page.content();
+        const debugDir = join(process.cwd(), 'debug-output');
+        await mkdir(debugDir, { recursive: true });
+        await writeFile(join(debugDir, 'login-page-initial.html'), toppageHtml);
 
         await page.waitForSelector('input[autocomplete="username"]');
         await page.type('input[autocomplete="username"]', userId);
@@ -53,4 +60,5 @@ export async function fetchAuthToken(userId: string, password: string): Promise<
 }
 
 // Node.jsのfsモジュールを使用してファイルに書き込む
-import { writeFile } from 'fs/promises';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from "path";
