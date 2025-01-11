@@ -3,16 +3,10 @@ import puppeteer from "puppeteer";
 export async function fetchAuthToken(userId: string, password: string): Promise<string> {
     const browser = await puppeteer.launch({
         headless: true,
-        args: [
-            '--no-sandbox',
-            '--lang=ja-JP'  // 日本語に設定
-        ]
+        args: ['--no-sandbox']
     });
 
     const page = await browser.newPage();
-    await page.setExtraHTTPHeaders({
-        'Accept-Language': 'ja-JP'  // HTTPヘッダーでも言語を指定
-    });
     page.setDefaultTimeout(10000);
 
     try {
@@ -31,7 +25,7 @@ export async function fetchAuthToken(userId: string, password: string): Promise<
         await page.waitForSelector('[role="button"]');
         const clicked = await page.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('[role="button"]'));
-            const nextButton = buttons.find(button => button.textContent?.includes('次へ'));
+            const nextButton = buttons.find(button => button.textContent?.includes('次へ') || button.textContent?.includes('Next'));
             if (nextButton && nextButton instanceof HTMLElement) {
                 nextButton.click();
                 return true;
