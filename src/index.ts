@@ -243,7 +243,7 @@ app.get('/api/check-by-user', async (c: Context) => {
         ...result,
         not_found: true,
       };
-      await service.createHistory(screenName, result, sessionId);
+      await service.createHistory(screenName, result, sessionId, ip);
 
       return c.json(result)
     }
@@ -254,7 +254,7 @@ app.get('/api/check-by-user', async (c: Context) => {
         suspend: true,
         user: user.result,
       };
-      await service.createHistory(screenName, result, sessionId);
+      await service.createHistory(screenName, result, sessionId, ip);
 
       return c.json(result)
     }
@@ -265,7 +265,7 @@ app.get('/api/check-by-user', async (c: Context) => {
         protect: true,
         user: user.result,
       };
-      await service.createHistory(screenName, result, sessionId);
+      await service.createHistory(screenName, result, sessionId, ip);
 
       return c.json(result)
     }
@@ -332,7 +332,8 @@ app.get('/api/check-by-user', async (c: Context) => {
       search_ban: searchBanFlag,
       search_suggestion_ban: searchSuggestionBanFlag,
     };
-    await service.createHistory(screenName, result, sessionId);
+    console.log("test" + ip)
+    await service.createHistory(screenName, result, sessionId, ip);
 
     return c.json({
       ...result,

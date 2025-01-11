@@ -4,7 +4,7 @@ import { ShadowBanCheckResult } from '..';
 const prisma = new PrismaClient();
 
 export class ShadowbanHistoryService {
-    async createHistory(screenName: string, checkResult: ShadowBanCheckResult, sessionId: string): Promise<any> {
+    async createHistory(screenName: string, checkResult: ShadowBanCheckResult, sessionId: string, ip: string): Promise<any> {
         try {
             const result = await prisma.shadowBanCheck.create({
                 data: {
@@ -17,6 +17,7 @@ export class ShadowbanHistoryService {
                     ghost_ban: checkResult.ghost_ban,
                     reply_deboosting: checkResult.reply_deboosting,
                     sessionId: sessionId,
+                    ip: ip,
                     // dateはデフォルト値が設定されるので指定不要
                 }
             });

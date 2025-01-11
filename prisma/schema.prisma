@@ -39,6 +39,7 @@ model ShadowBanCheck {
   ghost_ban            Boolean   @default(false)  // ゴーストバンの状態
   reply_deboosting     Boolean   @default(false)  // リプライデブーストの状態
   sessionId            String    // 検索除外チェックと同じID
+  ip                   String    @default("")// IPアドレス
   date                 DateTime  @default(now())  // チェック実施日時
 
   @@index([screen_name])
