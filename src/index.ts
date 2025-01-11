@@ -446,6 +446,34 @@ app.get('/api/user-by-screen-name', async (c) => {
   }
 });
 
+app.get('/api/user-id', async (c) => {
+  try {
+    const authToken = await authTokenService.getRequiredToken();
+    if (!authToken) {
+      throw new Error("AUTH_TOKEN is not defined");
+    }
+
+    const screenName = c.req.query('screen_name');
+
+    if (!screenName) {
+      throw new Error("SCREEN_NAME is not defined");
+    }
+
+    const userId = await fetchUserId(screenName);
+    if (!userId) {
+      return c.json({ error: 'user_id parameter is required' }, 400);
+    }
+    return c.json(userId);
+
+  } catch (error) {
+    console.error('Error:', error);
+    return c.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
 app.get('/api/usertweets', async (c) => {
   try {
     const authToken = await authTokenService.getRequiredToken();

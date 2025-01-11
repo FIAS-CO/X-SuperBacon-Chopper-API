@@ -18,7 +18,7 @@ export async function fetchAuthToken(userId: string, password: string): Promise<
         await mkdir(debugDir, { recursive: true });
 
         // ログインページに遷移
-        await page.goto('https://x.com/login', {
+        await page.goto('https://x.com/i/flow/login', {
             waitUntil: 'networkidle0', // ネットワーク接続が落ち着くまで待機
             timeout: 60000 // タイムアウトを延長
         });
