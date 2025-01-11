@@ -18,7 +18,7 @@ import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
 import { fetchAuthToken } from './TwitterUtil/TwitterAuthUtil'
-import { TwitterAuthTokenService } from './service/TwitterAuthTokenService'
+import { authTokenService, TwitterAuthTokenService } from './service/TwitterAuthTokenService'
 
 type Bindings = {}
 
@@ -200,7 +200,7 @@ app.get('/api/check-by-user', async (c: Context) => {
   const monitor = new PerformanceMonitor();
 
   try {
-    const authToken = process.env.AUTH_TOKEN;
+    const authToken = await authTokenService.getRequiredToken();
     if (!authToken) {
       throw new Error("AUTH_TOKEN is not defined");
     }
@@ -353,7 +353,7 @@ app.get('/api/check-by-user', async (c: Context) => {
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
-    const authToken = process.env.AUTH_TOKEN;
+    const authToken = await authTokenService.getRequiredToken();
     if (!authToken) {
       throw new Error("AUTH_TOKEN is not defined");
     }
@@ -415,7 +415,7 @@ app.get('/api/save-auth-token', async (c) => {
 //---
 app.get('/api/user-by-screen-name', async (c) => {
   try {
-    const authToken = process.env.AUTH_TOKEN;
+    const authToken = await authTokenService.getRequiredToken();
     if (!authToken) {
       throw new Error("AUTH_TOKEN is not defined");
     }
@@ -446,7 +446,7 @@ app.get('/api/user-by-screen-name', async (c) => {
 
 app.get('/api/usertweets', async (c) => {
   try {
-    const authToken = process.env.AUTH_TOKEN;
+    const authToken = await authTokenService.getRequiredToken();
     if (!authToken) {
       throw new Error("AUTH_TOKEN is not defined");
     }
@@ -482,7 +482,7 @@ app.get('/api/usertweets', async (c) => {
 
 app.get('/api/userreplies', async (c) => {
   try {
-    const authToken = process.env.AUTH_TOKEN;
+    const authToken = await authTokenService.getRequiredToken();
     if (!authToken) {
       throw new Error("AUTH_TOKEN is not defined");
     }
@@ -596,7 +596,7 @@ app.get('/api/user-timeline-urls', async (c) => {
 
 app.get('/api/tweet-detail', async (c) => {
   try {
-    const authToken = process.env.AUTH_TOKEN;
+    const authToken = await authTokenService.getRequiredToken();
     if (!authToken) {
       throw new Error("AUTH_TOKEN is not defined");
     }

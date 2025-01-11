@@ -34,4 +34,19 @@ export class TwitterAuthTokenService {
 
         return entry?.token ?? null;
     }
+
+    /**
+     * 現在のトークンを取得し、存在しない場合はエラーをスロー
+     * @throws Error トークンが存在しない場合
+     */
+    async getRequiredToken(): Promise<string> {
+        const token = await this.getCurrentToken();
+        if (!token) {
+            throw new Error('Auth token not found in database');
+        }
+        return token;
+    }
 }
+
+// 共有インスタンスをエクスポート
+export const authTokenService = new TwitterAuthTokenService();

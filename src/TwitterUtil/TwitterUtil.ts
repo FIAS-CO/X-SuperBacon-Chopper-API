@@ -3,6 +3,7 @@ import { expandUrl } from "../UrlUtil";
 import { generateRandomHexString } from "../FunctionUtil";
 import { CheckStatus } from "../types/Types";
 import { CheckHistoryService } from "../service/CheckHistoryService";
+import { authTokenService } from "../service/TwitterAuthTokenService";
 
 interface CheckResult {
     url: string;
@@ -139,7 +140,7 @@ export async function fetchUserId(screenName: string) {
         }),
     })
 
-    const headers = createHeader();
+    const headers = await createHeader();
 
     const userResponse = await fetch(
         `https://api.twitter.com/graphql/k5XapwcSikNsEsILW5FvgA/UserByScreenName?${searchParams}`,
@@ -377,7 +378,7 @@ export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
         })
     });
 
-    const headers = createHeader();
+    const headers = await createHeader();
     const response = await fetch(
         `https://x.com/i/api/graphql/nBS-WpgA6ZG0CyNHD517JQ/TweetDetail?${searchParams}`,
         { headers }
@@ -392,7 +393,7 @@ export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
 }
 
 export async function fetchUserByScreenNameAsync(screenName: string): Promise<any> {
-    const headers = createHeader();
+    const headers = await createHeader();
 
     const userParams = new URLSearchParams({
         "variables": JSON.stringify({
@@ -433,7 +434,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
 
 export async function fetchSearchTimelineAsync(screenName: string): Promise<any> {
-    const headers = createHeader();
+    const headers = await createHeader();
     const searchParams = new URLSearchParams({
         "variables": JSON.stringify({
             "rawQuery": `from:${screenName}`,
@@ -489,7 +490,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
 
 export async function fetchSearchSuggestionAsync(screenName: string, userNameText: string): Promise<any> {
 
-    const headers = createHeader();
+    const headers = await createHeader();
 
     const suggestionParams = new URLSearchParams({
         "include_ext_is_blue_verified": "1",
@@ -778,7 +779,7 @@ export async function getTimelineUrls(userId: string, containRepost: boolean): P
 
 export async function getTimelineTweetInfo(userId: string, containRepost: boolean): Promise<TweetInfo[]> {
     const DESIRED_COUNT = 20;
-    const authToken = process.env.AUTH_TOKEN;
+    const authToken = await authTokenService.getRequiredToken();
     if (!authToken) {
         throw new Error("AUTH_TOKEN is not defined");
     }
@@ -879,8 +880,8 @@ export async function fetchUserTweetsAsync(authToken: string, userId: string, cu
     return timelineResponse;
 }
 
-function createHeader() {
-    const authToken = process.env.AUTH_TOKEN;
+async function createHeader() {
+    const authToken = await authTokenService.getRequiredToken();
     if (!authToken) {
         throw new Error("AUTH_TOKEN is not defined");
     }
