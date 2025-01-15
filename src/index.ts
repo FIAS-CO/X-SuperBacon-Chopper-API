@@ -382,16 +382,15 @@ app.get('/api/searchtimeline', async (c: Context) => {
 
 app.get('/api/save-auth-token', async (c) => {
   try {
+    const newToken = c.req.query('token');
+    if (!newToken) {
+      return c.json({ error: 'token parameter is required' }, 400);
+    }
+
     const authTokenService = new TwitterAuthTokenService();
 
     // まず既存のトークンを取得
     const currentToken = await authTokenService.getCurrentToken();
-
-    // 新しいトークンを取得
-    const newToken = await fetchAuthToken(
-      process.env.X_ACCOUNT || '',
-      process.env.X_PASSWORD || ''
-    );
 
     // 既存のトークンと新しいトークンが異なる場合のみ更新
     if (!currentToken || currentToken !== newToken) {
@@ -404,9 +403,9 @@ app.get('/api/save-auth-token', async (c) => {
       is_updated: currentToken !== newToken
     });
   } catch (error) {
-    console.error('Error fetching auth token:', error);
+    console.error('Error saving auth token:', error);
     return c.json({
-      error: 'Failed to fetch auth token',
+      error: 'Failed to save auth token',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }
