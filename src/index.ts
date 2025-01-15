@@ -17,9 +17,7 @@ import { serverDecryption } from './util/ServerDecryption'
 import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
-import { fetchAuthToken } from './TwitterUtil/TwitterAuthUtil'
 import { authTokenService, TwitterAuthTokenService } from './service/TwitterAuthTokenService'
-import { TokenRefreshCronService } from './service/AuthTokenRefreshCronService'
 
 type Bindings = {}
 
@@ -708,22 +706,6 @@ app.get('/api/tweet-detail', async (c) => {
   }
 });
 
-app.get('/api/fetch-auth-token', async (c) => {
-  try {
-    const token = await fetchAuthToken(
-      process.env.X_ACCOUNT || '',
-      process.env.X_PASSWORD || ''
-    );
-    return c.json({ token });
-  } catch (error) {
-    console.error('Error fetching auth token:', error);
-    return c.json({
-      error: 'Failed to fetch auth token',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
-  }
-});
-
 app.get('/api/auth-token-info', async (c) => {
   try {
     const entry = await prisma.twitterAuthToken.findUnique({
@@ -752,16 +734,6 @@ app.get('/api/auth-token-info', async (c) => {
 
 const port = 3001
 console.log(`Server is running on port ${port}`)
-
-// CRONジョブを開始
-TokenRefreshCronService.startTokenRefreshCron();
-
-// プロセス終了時にCRONジョブを停止
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Stopping cron jobs...');
-  TokenRefreshCronService.stopAllCronJobs();
-  process.exit(0);
-});
 
 serve({
   fetch: app.fetch,
