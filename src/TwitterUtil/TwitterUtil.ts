@@ -424,8 +424,10 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
     );
 
     const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+    const remaining = userResponse.headers.get('x-rate-limit-remaining');
     const resetTime = userResponse.headers.get('x-rate-limit-reset');
-    console.log(`[${jstDate}] Rate limit exceeded. Reset time:`, resetTime);
+    console.log(`[${jstDate}] UserByScreenName Rate limit remaining:`, remaining);
+    console.log(`[${jstDate}] UserByScreenName Rate limit exceeded. Reset time:`, resetTime);
 
     if (!userResponse.ok) {
         const errorText = await userResponse.text();
@@ -483,6 +485,12 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         `https://x.com/i/api/graphql/oyfSj18lHmR7VGC8aM2wpA/SearchTimeline?${searchParams}`,
         { headers }
     );
+
+    const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+    const remaining = searchResponse.headers.get('x-rate-limit-remaining');
+    const resetTime = searchResponse.headers.get('x-rate-limit-reset');
+    console.log(`[${jstDate}] SearchTimeline Rate limit remaining:`, remaining);
+    console.log(`[${jstDate}] SearchTimeline Rate limit exceeded. Reset time:`, resetTime);
 
     if (!searchResponse.ok) {
         const errorText = await searchResponse.text();
