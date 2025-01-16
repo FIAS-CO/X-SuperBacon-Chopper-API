@@ -425,11 +425,11 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
     console.log('response status', userResponse.status)
 
-    // レート制限のチェック
-    if (userResponse.status === 429) {
-        const resetTime = userResponse.headers.get('x-rate-limit-reset');
-        console.log('Rate limit exceeded. Reset time:', resetTime);
-    }
+    console.log('response ok', userResponse.ok)
+
+    const resetTime = userResponse.headers.get('x-rate-limit-reset');
+    console.log('Rate limit exceeded. Reset time:', resetTime);
+
 
     if (!userResponse.ok) {
         throw new Error(`Twitter API returned status: ${userResponse.status}`)
