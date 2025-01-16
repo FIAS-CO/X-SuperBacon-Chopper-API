@@ -423,20 +423,19 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
         { headers }
     );
 
-    console.log('response status', userResponse.status)
-
-    console.log('response ok', userResponse.ok)
-
+    const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
     const resetTime = userResponse.headers.get('x-rate-limit-reset');
-    console.log('Rate limit exceeded. Reset time:', resetTime);
-
+    console.log(`[${jstDate}] Rate limit exceeded. Reset time:`, resetTime);
 
     if (!userResponse.ok) {
-        throw new Error(`Twitter API returned status: ${userResponse.status}`)
+        const errorText = await userResponse.text();
+        console.error(`[${jstDate}] Twitter API Error:`, errorText);
+        throw new Error(`Twitter API returned status: ${userResponse.status}, Error: ${errorText}`);
     }
 
     const { data: { user } } = await userResponse.json()
 
+    console.log('fetchuser end');
     return user;
 }
 
@@ -487,7 +486,8 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
 
     if (!searchResponse.ok) {
         const errorText = await searchResponse.text();
-        console.error('Search API Error:', errorText);
+        const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+        console.error(`[${jstDate}] Search API Error:`, errorText);
         throw new Error(`Search API returned status: ${searchResponse.status}, Error: ${errorText}`);
     }
 
