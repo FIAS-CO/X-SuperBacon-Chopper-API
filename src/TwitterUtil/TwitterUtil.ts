@@ -423,6 +423,8 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
         { headers }
     );
 
+    console.log('response status', userResponse.status)
+
     // レート制限のチェック
     if (userResponse.status === 429) {
         const resetTime = userResponse.headers.get('x-rate-limit-reset');
