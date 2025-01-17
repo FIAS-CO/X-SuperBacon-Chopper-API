@@ -115,47 +115,6 @@ interface TweetStatus {
     oembedData?: any;
 }
 
-export async function fetchUserId(screenName: string) {
-    // First, get userId from screen_name using usertest endpoint
-    const searchParams = new URLSearchParams({
-        "variables": JSON.stringify({
-            "screen_name": screenName,
-            "withSafetyModeUserFields": true,
-        }),
-        "features": JSON.stringify({
-            "hidden_profile_likes_enabled": true,
-            "hidden_profile_subscriptions_enabled": true,
-            "responsive_web_graphql_exclude_directive_enabled": true,
-            "verified_phone_label_enabled": false,
-            "subscriptions_verification_info_is_identity_verified_enabled": true,
-            "subscriptions_verification_info_verified_since_enabled": true,
-            "highlights_tweets_tab_ui_enabled": true,
-            "responsive_web_twitter_article_notes_tab_enabled": true,
-            "creator_subscriptions_tweet_preview_api_enabled": true,
-            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
-            "responsive_web_graphql_timeline_navigation_enabled": true,
-        }),
-        "fieldToggles": JSON.stringify({
-            "withAuxiliaryUserLabels": false,
-        }),
-    })
-
-    const headers = await createHeader();
-
-    const userResponse = await fetch(
-        `https://api.twitter.com/graphql/k5XapwcSikNsEsILW5FvgA/UserByScreenName?${searchParams}`,
-        { headers }
-    )
-
-    if (!userResponse.ok) {
-        throw new Error(`Twitter API returned status: ${userResponse.status}`)
-    }
-
-    const { data: { user } } = await userResponse.json()
-    const userId = user?.result?.rest_id
-    return userId
-}
-
 function pickScreenName(url: string): string {
     try {
         const parsedUrl = new URL(url);

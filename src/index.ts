@@ -5,7 +5,6 @@ import type { Context } from 'hono'
 import {
   fetchUserByScreenNameAsync, fetchSearchTimelineAsync, fetchSearchSuggestionAsync,
   batchCheckTweets,
-  fetchUserId,
   fetchUserTweetsAsync,
   getTimelineTweetInfo,
   batchCheckTweetUrls
@@ -305,7 +304,7 @@ app.get('/api/check-by-user', async (c: Context) => {
     var checkedTweets = checkSearchBan ? await (async () => {
       try {
         monitor.startOperation('fetchUserId');
-        const userId = await fetchUserId(screenName);
+        const userId = user?.result?.rest_id;
         monitor.endOperation('fetchUserId');
 
         monitor.startOperation('fetchTimelineUrls');
@@ -456,7 +455,7 @@ app.get('/api/user-id', async (c) => {
       throw new Error("SCREEN_NAME is not defined");
     }
 
-    const userId = await fetchUserId(screenName);
+    const userId = (await fetchUserByScreenNameAsync(screenName)).result?.rest_id;
     if (!userId) {
       return c.json({ error: 'user_id parameter is required' }, 400);
     }
@@ -484,7 +483,7 @@ app.get('/api/usertweets', async (c) => {
       throw new Error("SCREEN_NAME is not defined");
     }
 
-    const userId = await fetchUserId(screenName);
+    const userId = (await fetchUserByScreenNameAsync(screenName)).result?.rest_id;
     if (!userId) {
       return c.json({ error: 'user_id parameter is required' }, 400);
     }
@@ -601,7 +600,7 @@ app.get('/api/user-timeline-urls', async (c) => {
     const checkRepost = (c.req.query('repost') ?? 'true') === 'true';
 
     // 認証トークンの確認
-    const userId = await fetchUserId(screenName)
+    const userId = (await fetchUserByScreenNameAsync(screenName)).result?.rest_id;
 
     if (!userId) {
       return c.json({ error: 'User not found' }, 404);
