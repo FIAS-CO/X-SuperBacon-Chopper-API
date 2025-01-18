@@ -23,7 +23,7 @@ export class PerformanceMonitor {
         const timing = this.timings.find(t => t.operation === operation && !t.duration);
         if (timing) {
             timing.duration = Date.now() - timing.startTime;
-            console.log(`${operation} took ${timing.duration}ms`);
+            // console.log(`${operation} took ${timing.duration}ms`);
         }
     }
 
@@ -35,8 +35,8 @@ export class PerformanceMonitor {
             }
         });
         result.totalTime = Date.now() - this.startTime;
-        console.log('Total processing time:', result.totalTime, 'ms');
-        console.log('Timing breakdown:', result);
+        // console.log('Total processing time:', result.totalTime, 'ms');
+        // console.log('Timing breakdown:', result);
         return result;
     }
 }
