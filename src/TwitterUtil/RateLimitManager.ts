@@ -32,7 +32,7 @@ class RateLimitManager {
             const now = Date.now();
             if (now < limit.resetTime && limit.remaining <= 0) {
                 latestResetTime = Math.max(latestResetTime, limit.resetTime);
-                const resetTime = new Date(limit?.resetTime || 0).toISOString()
+                const resetTime = new Date(limit?.resetTime || 0).toLocaleString()
                 Log.info(`Rate check NG by ${endpoint} until. ${resetTime}`)
                 return {
                     canProceed: false,
@@ -57,7 +57,7 @@ class RateLimitManager {
         const limit = this.rateLimits.get(endpoint);
         Log.info(`Rate limit updated for ${endpoint}:`, {
             remaining: limit?.remaining,
-            resetTime: new Date(limit?.resetTime || 0).toISOString()
+            resetTime: new Date(limit?.resetTime || 0).toLocaleString()
         });
     }
 
