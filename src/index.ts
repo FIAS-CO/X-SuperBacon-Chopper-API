@@ -17,6 +17,7 @@ import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
 import { authTokenService, TwitterAuthTokenService } from './service/TwitterAuthTokenService'
+import { rateLimitManager } from './TwitterUtil/RateLimitManager'
 
 type Bindings = {}
 
@@ -191,6 +192,16 @@ export interface ShadowBanCheckResult {
   ghost_ban: boolean;
   reply_deboosting: boolean;
   user: any | null;
+  api_status: {
+    userSearchGroup: {
+      rate_limit: boolean,
+      error: string | undefined
+    },
+    userTimelineGroup: {
+      rate_limit: boolean,
+      error: string | undefined
+    }
+  }
 }
 
 app.get('/api/check-by-user', async (c: Context) => {
@@ -214,10 +225,6 @@ app.get('/api/check-by-user', async (c: Context) => {
     const encryptedIp = c.req.query('key');
     const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
 
-    monitor.startOperation('fetchUser');
-    const user = await fetchUserByScreenNameAsync(screenName);
-    monitor.endOperation('fetchUser');
-
     var result: ShadowBanCheckResult = {
       not_found: false,
       suspend: false,
@@ -229,39 +236,54 @@ app.get('/api/check-by-user', async (c: Context) => {
       ghost_ban: false,
       reply_deboosting: false,
       user: null,
+      api_status: {
+        userSearchGroup: {
+          rate_limit: true,
+          error: undefined as string | undefined
+        },
+        userTimelineGroup: {
+          rate_limit: true,
+          error: undefined as string | undefined
+        }
+      }
     }
 
-    const service = new ShadowbanHistoryService();
+    const userSearchLimit = rateLimitManager.checkGroupRateLimit(
+      rateLimitManager.endpointGroups.userSearchGroup
+    );
+    if (!userSearchLimit.canProceed) {
+      const resetDate = new Date(userSearchLimit.resetTime!).toISOString();
+      result.api_status.userSearchGroup.error = `Rate limit reached. Try again after ${resetDate}`;
+      return c.json(result);
+    }
 
+    result.api_status.userSearchGroup.rate_limit = false;
+
+    monitor.startOperation('fetchUser');
+    const user = await fetchUserByScreenNameAsync(screenName);
+    monitor.endOperation('fetchUser');
+
+    const service = new ShadowbanHistoryService();
     const sessionId = generateRandomHexString(16);
 
     if (!user) {
-      result = {
-        ...result,
-        not_found: true,
-      };
+      result.not_found = true;
       await service.createHistory(screenName, result, sessionId, ip);
 
       return c.json(result)
     }
 
+    result.user = user.result;
+
     if (user.result.__typename !== "User") {
-      result = {
-        ...result,
-        suspend: true,
-        user: user.result,
-      };
+      result.suspend = true;
       await service.createHistory(screenName, result, sessionId, ip);
 
       return c.json(result)
     }
 
     if (user.result.legacy.protected === true) {
-      result = {
-        ...result,
-        protect: true,
-        user: user.result,
-      };
+      result.protect = true;
       await service.createHistory(screenName, result, sessionId, ip);
 
       return c.json(result)
@@ -290,6 +312,7 @@ app.get('/api/check-by-user', async (c: Context) => {
         if (!searchBanFlag) break
       }
     }
+    result.search_ban = searchBanFlag;
 
     const searchSuggestionBanFlag = searchBanFlag || await (async () => {
       const userNameText = user.result.legacy.name;
@@ -300,6 +323,22 @@ app.get('/api/check-by-user', async (c: Context) => {
         (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === userScreenName
       );
     })();
+    result.search_suggestion_ban = searchSuggestionBanFlag;
+
+    const timelineLimit = rateLimitManager.checkGroupRateLimit(
+      rateLimitManager.endpointGroups.userTimelineGroup
+    );
+
+    if (!timelineLimit.canProceed) {
+      const resetDate = new Date(timelineLimit.resetTime!).toISOString();
+      result.api_status.userTimelineGroup.error = `Rate limit reached. Try again after ${resetDate}`;
+      return c.json({
+        ...result,
+        tweets: []
+      });
+    }
+
+    result.api_status.userTimelineGroup.rate_limit = false;
 
     var checkedTweets = checkSearchBan ? await (async () => {
       try {
@@ -323,12 +362,6 @@ app.get('/api/check-by-user', async (c: Context) => {
 
     const timings = monitor.getTimings();
 
-    result = {
-      ...result,
-      no_tweet: !user.result.legacy.statuses_count,
-      search_ban: searchBanFlag,
-      search_suggestion_ban: searchSuggestionBanFlag,
-    };
     console.log("test" + ip)
     await service.createHistory(screenName, result, sessionId, ip);
 

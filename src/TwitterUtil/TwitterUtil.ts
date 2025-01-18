@@ -4,6 +4,7 @@ import { generateRandomHexString } from "../FunctionUtil";
 import { CheckStatus } from "../types/Types";
 import { CheckHistoryService } from "../service/CheckHistoryService";
 import { authTokenService } from "../service/TwitterAuthTokenService";
+import { rateLimitManager } from "./RateLimitManager";
 
 interface CheckResult {
     url: string;
@@ -381,15 +382,12 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
         `https://api.twitter.com/graphql/k5XapwcSikNsEsILW5FvgA/UserByScreenName?${userParams}`,
         { headers }
     );
-
-    const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-    const remaining = userResponse.headers.get('x-rate-limit-remaining');
-    const resetTime = userResponse.headers.get('x-rate-limit-reset');
-    console.log(`[${jstDate}] UserByScreenName Rate limit remaining:`, remaining);
-    console.log(`[${jstDate}] UserByScreenName Rate limit exceeded. Reset time:`, resetTime);
+    rateLimitManager.updateRateLimit('UserByScreenName', userResponse.headers);
 
     if (!userResponse.ok) {
         const errorText = await userResponse.text();
+
+        const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
         console.error(`[${jstDate}] Twitter API Error:`, errorText);
         throw new Error(`Twitter API returned status: ${userResponse.status}, Error: ${errorText}`);
     }
@@ -444,15 +442,11 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         `https://x.com/i/api/graphql/oyfSj18lHmR7VGC8aM2wpA/SearchTimeline?${searchParams}`,
         { headers }
     );
-
-    const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-    const remaining = searchResponse.headers.get('x-rate-limit-remaining');
-    const resetTime = searchResponse.headers.get('x-rate-limit-reset');
-    console.log(`[${jstDate}] SearchTimeline Rate limit remaining:`, remaining);
-    console.log(`[${jstDate}] SearchTimeline Rate limit exceeded. Reset time:`, resetTime);
+    rateLimitManager.updateRateLimit('SearchTimeline', searchResponse.headers);
 
     if (!searchResponse.ok) {
         const errorText = await searchResponse.text();
+
         const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
         console.error(`[${jstDate}] Search API Error:`, errorText);
         throw new Error(`Search API returned status: ${searchResponse.status}, Error: ${errorText}`);
@@ -851,6 +845,7 @@ export async function fetchUserTweetsAsync(authToken: string, userId: string, cu
         `https://x.com/i/api/graphql/Tg82Ez_kxVaJf7OPbUdbCg/UserTweets?${timelineParams}`,
         { headers }
     );
+    rateLimitManager.updateRateLimit('UserTweets', timelineResponse.headers);
 
     return timelineResponse;
 }
