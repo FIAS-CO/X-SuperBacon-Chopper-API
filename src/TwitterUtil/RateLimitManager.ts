@@ -20,6 +20,7 @@ class RateLimitManager {
         canProceed: boolean;
         resetTime?: number;
     } {
+        this.displayAllRateLimits()
         let latestResetTime = 0;
 
         for (const endpoint of group) {
@@ -54,6 +55,19 @@ class RateLimitManager {
         console.log(`[${jstDate}] Rate limit updated for ${endpoint}:`, {
             remaining: limit?.remaining,
             resetTime: new Date(limit?.resetTime || 0).toISOString()
+        });
+    }
+
+    displayAllRateLimits(): void {
+        console.log('\n=== Current Rate Limits ===');
+        if (this.rateLimits.size === 0) {
+            console.log('No rate limits set');
+            return;
+        }
+
+        this.rateLimits.forEach((limit, endpoint) => {
+            const resetDate = new Date(limit.resetTime).toLocaleString();
+            console.log(`Endpoint: ${endpoint}- Remaining: ${limit.remaining}- Reset time: ${resetDate}`);
         });
     }
 }
