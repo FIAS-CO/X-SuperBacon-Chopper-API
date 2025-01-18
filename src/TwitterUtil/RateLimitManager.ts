@@ -32,13 +32,15 @@ class RateLimitManager {
             const now = Date.now();
             if (now < limit.resetTime && limit.remaining <= 0) {
                 latestResetTime = Math.max(latestResetTime, limit.resetTime);
+                const resetTime = new Date(limit?.resetTime || 0).toISOString()
+                Log.info(`Rate check NG by ${endpoint} until. ${resetTime}`)
                 return {
                     canProceed: false,
                     resetTime: latestResetTime
                 };
             }
         }
-
+        Log.info('Rate check OK.')
         return { canProceed: true };
     }
 
@@ -52,9 +54,8 @@ class RateLimitManager {
             resetTime
         });
 
-        const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
         const limit = this.rateLimits.get(endpoint);
-        Log.info(`[${jstDate}] Rate limit updated for ${endpoint}:`, {
+        Log.info(`Rate limit updated for ${endpoint}:`, {
             remaining: limit?.remaining,
             resetTime: new Date(limit?.resetTime || 0).toISOString()
         });
