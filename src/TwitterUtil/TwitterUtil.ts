@@ -393,8 +393,6 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
     }
 
     const { data: { user } } = await userResponse.json()
-
-    console.log('fetchuser end');
     return user;
 }
 
