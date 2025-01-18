@@ -45,8 +45,8 @@ class RateLimitManager {
     }
 
     // レスポンスヘッダーからレート制限情報を更新
-    updateRateLimit(endpoint: string, headers: Headers) {
-        const remaining = parseInt(headers.get('x-rate-limit-remaining') || '0');
+    updateRateLimit(endpoint: string, headers: Headers, exceeded: boolean = false) {
+        const remaining = exceeded ? 0 : parseInt(headers.get('x-rate-limit-remaining') || '0');
         const resetTime = parseInt(headers.get('x-rate-limit-reset') || '0') * 1000;
 
         this.rateLimits.set(endpoint, {

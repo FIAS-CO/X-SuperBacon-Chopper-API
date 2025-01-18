@@ -5,6 +5,7 @@ import { CheckStatus } from "../types/Types";
 import { CheckHistoryService } from "../service/CheckHistoryService";
 import { authTokenService } from "../service/TwitterAuthTokenService";
 import { rateLimitManager } from "./RateLimitManager";
+import { Log } from "../util/Log";
 
 interface CheckResult {
     url: string;
@@ -389,6 +390,11 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
         const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
         console.error(`[${jstDate}] Twitter API Error:`, errorText);
+
+        if (userResponse.status === 429) {
+            Log.info('Rate limit of UserByScreenName is unexpecedly updated.')
+            rateLimitManager.updateRateLimit('UserByScreenName', userResponse.headers, true);
+        }
         throw new Error(`Twitter API returned status: ${userResponse.status}, Error: ${errorText}`);
     }
 
@@ -445,8 +451,11 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
     if (!searchResponse.ok) {
         const errorText = await searchResponse.text();
 
-        const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-        console.error(`[${jstDate}] Search API Error:`, errorText);
+        Log.error(`Search API Error:`, errorText);
+        if (searchResponse.status === 429) {
+            Log.info('Rate limit of SearchTimeline is unexpecedly updated.')
+            rateLimitManager.updateRateLimit('SearchTimeline', searchResponse.headers, true);
+        }
         throw new Error(`Search API returned status: ${searchResponse.status}, Error: ${errorText}`);
     }
 
@@ -759,6 +768,13 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
         // API呼び出し
         const response = await fetchUserTweetsAsync(authToken, userId, cursor);
         if (!response.ok) {
+            const errorText = await response.text();
+            Log.error(`Search API Error:`, errorText);
+
+            if (response.status === 429) {
+                Log.info('Rate limit of UserTweet is unexpecedly updated.')
+                rateLimitManager.updateRateLimit('UserTweets', response.headers, true);
+            }
             throw new Error(`Twitter API returned status: ${response.status}`);
         }
 
