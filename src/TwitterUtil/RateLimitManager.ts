@@ -1,3 +1,5 @@
+import { Log } from "../util/Log";
+
 class RateLimitManager {
     private rateLimits: Map<string, {
         remaining: number;
@@ -52,22 +54,22 @@ class RateLimitManager {
 
         const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
         const limit = this.rateLimits.get(endpoint);
-        console.log(`[${jstDate}] Rate limit updated for ${endpoint}:`, {
+        Log.info(`[${jstDate}] Rate limit updated for ${endpoint}:`, {
             remaining: limit?.remaining,
             resetTime: new Date(limit?.resetTime || 0).toISOString()
         });
     }
 
     displayAllRateLimits(): void {
-        console.log('\n=== Current Rate Limits ===');
+        Log.info('=== Current Rate Limits ===');
         if (this.rateLimits.size === 0) {
-            console.log('No rate limits set');
+            Log.info('No rate limits set');
             return;
         }
 
         this.rateLimits.forEach((limit, endpoint) => {
             const resetDate = new Date(limit.resetTime).toLocaleString();
-            console.log(`Endpoint: ${endpoint}- Remaining: ${limit.remaining}- Reset time: ${resetDate}`);
+            Log.info(`Endpoint: ${endpoint}- Remaining: ${limit.remaining}- Reset time: ${resetDate}`);
         });
     }
 }
