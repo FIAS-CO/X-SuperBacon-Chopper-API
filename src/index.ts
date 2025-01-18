@@ -18,6 +18,7 @@ import { PerformanceMonitor } from './util/PerformanceMonitor'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
 import { authTokenService, TwitterAuthTokenService } from './service/TwitterAuthTokenService'
 import { rateLimitManager } from './TwitterUtil/RateLimitManager'
+import { Log } from './util/Log'
 
 type Bindings = {}
 
@@ -225,6 +226,8 @@ app.get('/api/check-by-user', async (c: Context) => {
     const encryptedIp = c.req.query('key');
     const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
 
+    Log.info(`Check by user start. name:${screenName} searchban:${checkSearchBan} repost:${checkRepost}`)
+
     var result: ShadowBanCheckResult = {
       not_found: false,
       suspend: false,
@@ -362,7 +365,6 @@ app.get('/api/check-by-user', async (c: Context) => {
 
     const timings = monitor.getTimings();
 
-    console.log("test" + ip)
     await service.createHistory(screenName, result, sessionId, ip);
 
     return c.json({
