@@ -413,7 +413,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
             "product": "Top"
         }),
         "features": JSON.stringify({
-            "profile_label_improvements_pcf_label_in_post_enabled": false,
+            "profile_label_improvements_pcf_label_in_post_enabled": true,
             "rweb_tipjar_consumption_enabled": true,
             "responsive_web_graphql_exclude_directive_enabled": true,
             "verified_phone_label_enabled": false,
@@ -424,6 +424,9 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
             "communities_web_enable_tweet_community_results_fetch": true,
             "c9s_tweet_anatomy_moderator_badge_enabled": true,
             "responsive_web_grok_analyze_button_fetch_trends_enabled": false,
+            "responsive_web_grok_analyze_post_followups_enabled": true,
+            "responsive_web_jetfuel_frame": false,
+            "responsive_web_grok_share_attachment_enabled": true,
             "articles_preview_enabled": true,
             "responsive_web_edit_tweet_api_enabled": true,
             "graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
@@ -438,12 +441,13 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
             "rweb_video_timestamps_enabled": true,
             "longform_notetweets_rich_text_read_enabled": true,
             "longform_notetweets_inline_media_enabled": true,
+            "responsive_web_grok_image_annotation_enabled": false,
             "responsive_web_enhance_cards_enabled": false
         })
     });
 
     const searchResponse = await fetch(
-        `https://x.com/i/api/graphql/oyfSj18lHmR7VGC8aM2wpA/SearchTimeline?${searchParams}`,
+        `https://x.com/i/api/graphql/1BP5aKg8NvTNvRCyyCyq8g/SearchTimeline?${searchParams}`,
         { headers }
     );
     rateLimitManager.updateRateLimit('SearchTimeline', searchResponse.headers);
