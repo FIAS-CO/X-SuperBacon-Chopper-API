@@ -766,6 +766,23 @@ app.get('/api/auth-token-info', async (c) => {
   }
 });
 
+app.get('/api/decrypt-ip', async (c: Context) => {
+  try {
+    const encryptedIp = c.req.query('key'); // クエリパラメータから取得
+    const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+
+    return c.json({
+      encryptedIp: encryptedIp,
+      ip: ip
+    });
+  } catch (error) {
+    return c.json({
+      error: 'Failed to decrypt ip',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
 const port = 3001
 console.log(`Server is running on port ${port}`)
 
