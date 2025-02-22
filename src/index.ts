@@ -19,6 +19,7 @@ import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
 import { authTokenService, TwitterAuthTokenService } from './service/TwitterAuthTokenService'
 import { rateLimitManager } from './TwitterUtil/RateLimitManager'
 import { Log } from './util/Log'
+import { discordNotifyService } from './service/DiscordNotifyService'
 
 type Bindings = {}
 
@@ -422,17 +423,20 @@ app.get('/api/save-auth-token', async (c) => {
     const authTokenService = new TwitterAuthTokenService();
 
     // まず既存のトークンを取得
-    const currentToken = await authTokenService.getCurrentToken();
+    const currentToken = await authTokenService.getCurrentToken() ?? "NO_DATA";
 
     // 既存のトークンと新しいトークンが異なる場合のみ更新
     if (!currentToken || currentToken !== newToken) {
       await authTokenService.saveToken(newToken);
     }
 
+    const isUpdated = currentToken !== newToken;
+    discordNotifyService.notifyAuthTokenRefresh(currentToken, newToken, isUpdated);
+
     return c.json({
       old_token: currentToken,
       new_token: newToken,
-      is_updated: currentToken !== newToken
+      is_updated: isUpdated
     });
   } catch (error) {
     console.error('Error saving auth token:', error);
@@ -774,6 +778,21 @@ app.get('/api/decrypt-ip', async (c: Context) => {
     return c.json({
       encryptedIp: encryptedIp,
       ip: ip
+    });
+  } catch (error) {
+    return c.json({
+      error: 'Failed to decrypt ip',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
+app.get('/api/testtest', async (c: Context) => {
+  try {
+    discordNotifyService.notifyRateLimit("test", new Date().toDateString())
+
+    return c.json({
+      test: "test"
     });
   } catch (error) {
     return c.json({
