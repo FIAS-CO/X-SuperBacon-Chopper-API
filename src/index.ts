@@ -258,6 +258,8 @@ app.get('/api/check-by-user', async (c: Context) => {
     if (!userSearchLimit.canProceed) {
       const resetDate = new Date(userSearchLimit.resetTime!).toISOString();
       result.api_status.userSearchGroup.error = `Rate limit reached. Try again after ${resetDate}`;
+      discordNotifyService.notifyRateLimit("Shadowban check", resetDate);
+
       return c.json(result);
     }
 
@@ -336,6 +338,8 @@ app.get('/api/check-by-user', async (c: Context) => {
     if (!timelineLimit.canProceed) {
       const resetDate = new Date(timelineLimit.resetTime!).toISOString();
       result.api_status.userTimelineGroup.error = `Rate limit reached. Try again after ${resetDate}`;
+      discordNotifyService.notifyRateLimit("Tweet check", resetDate);
+
       return c.json({
         ...result,
         tweets: []

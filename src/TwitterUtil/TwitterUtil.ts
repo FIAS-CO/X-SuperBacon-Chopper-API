@@ -6,6 +6,7 @@ import { CheckHistoryService } from "../service/CheckHistoryService";
 import { authTokenService } from "../service/TwitterAuthTokenService";
 import { rateLimitManager } from "./RateLimitManager";
 import { Log } from "../util/Log";
+import { discordNotifyService } from "../service/DiscordNotifyService";
 
 interface CheckResult {
     url: string;
@@ -394,6 +395,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
         if (userResponse.status === 429) {
             Log.info('Rate limit of UserByScreenName is unexpecedly updated.')
             rateLimitManager.updateRateLimit('UserByScreenName', userResponse.headers, true);
+            discordNotifyService.notifyRateLimitWithRateRemaining('UserByScreenName(Shadowban Check)');
         }
         throw new Error(`Twitter API returned status: ${userResponse.status}, Error: ${errorText}`);
     }
@@ -459,6 +461,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         if (searchResponse.status === 429) {
             Log.info('Rate limit of SearchTimeline is unexpecedly updated.')
             rateLimitManager.updateRateLimit('SearchTimeline', searchResponse.headers, true);
+            discordNotifyService.notifyRateLimitWithRateRemaining('SearchTimeline(Shadowban Check)');
         }
         throw new Error(`Search API returned status: ${searchResponse.status}, Error: ${errorText}`);
     }
@@ -778,6 +781,7 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
             if (response.status === 429) {
                 Log.info('Rate limit of UserTweet is unexpecedly updated.')
                 rateLimitManager.updateRateLimit('UserTweets', response.headers, true);
+                discordNotifyService.notifyRateLimitWithRateRemaining('UserTweets(Tweet Check)');
             }
             throw new Error(`Twitter API returned status: ${response.status}`);
         }

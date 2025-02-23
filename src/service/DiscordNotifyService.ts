@@ -71,6 +71,17 @@ export class DiscordNotifyService {
         await this.sendMessage(message);
     }
 
+    async notifyRateLimitWithRateRemaining(endpoint: string): Promise<void> {
+        const message = `
+⚠️ **Rate Limit Alert But Limit Reaining**
+**Endpoint:** ${endpoint}
+**Time:** ${this.getJSTDateTime()}
+        `.trim();
+
+        await this.sendMessage(message);
+    }
+
+
     // auth token切り替え通知用のメソッド
     async notifyAuthTokenRefresh(oldToken: string, newToken: string, isSuccess: boolean): Promise<void> {
         const status = isSuccess ? "✅ Success" : "❌ Failed";
