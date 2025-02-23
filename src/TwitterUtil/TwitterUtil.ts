@@ -396,6 +396,8 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
             Log.info('Rate limit of UserByScreenName is unexpecedly updated.')
             rateLimitManager.updateRateLimit('UserByScreenName', userResponse.headers, true);
             discordNotifyService.notifyRateLimitWithRateRemaining('UserByScreenName(Shadowban Check)');
+        } else {
+            discordNotifyService.notifyResponseError(userResponse, 'UserByScreenName');
         }
         throw new Error(`Twitter API returned status: ${userResponse.status}, Error: ${errorText}`);
     }
@@ -462,6 +464,8 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
             Log.info('Rate limit of SearchTimeline is unexpecedly updated.')
             rateLimitManager.updateRateLimit('SearchTimeline', searchResponse.headers, true);
             discordNotifyService.notifyRateLimitWithRateRemaining('SearchTimeline(Shadowban Check)');
+        } else {
+            discordNotifyService.notifyResponseError(searchResponse, 'SearchTimeline');
         }
         throw new Error(`Search API returned status: ${searchResponse.status}, Error: ${errorText}`);
     }
@@ -782,6 +786,8 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
                 Log.info('Rate limit of UserTweet is unexpecedly updated.')
                 rateLimitManager.updateRateLimit('UserTweets', response.headers, true);
                 discordNotifyService.notifyRateLimitWithRateRemaining('UserTweets(Tweet Check)');
+            } else {
+                discordNotifyService.notifyResponseError(response, 'UserTweets');
             }
             throw new Error(`Twitter API returned status: ${response.status}`);
         }

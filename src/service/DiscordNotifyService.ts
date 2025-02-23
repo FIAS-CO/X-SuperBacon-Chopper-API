@@ -59,6 +59,18 @@ export class DiscordNotifyService {
         await this.sendMessage(message);
     }
 
+    async notifyResponseError(response: Response, context: string): Promise<void> {
+        const message = `
+        🚨 **Error Alert**
+        **Context:** ${context}
+        **Status:** ${response.status}
+        **Text:** ${response.text}
+        **Time:** ${this.getJSTDateTime()}
+                `.trim();
+
+        await this.sendMessage(message);
+    }
+
     // レートリミット警告用のヘルパーメソッド
     async notifyRateLimit(endpoint: string, resetTime: string): Promise<void> {
         const message = `
