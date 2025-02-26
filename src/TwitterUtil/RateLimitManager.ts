@@ -18,7 +18,7 @@ class RateLimitManager {
     };
 
     // グループ内の全エンドポイントのレート制限をチェック
-    checkGroupRateLimit(group: string[]): {
+    checkGroupRateLimit(token: string, group: string[]): {
         canProceed: boolean;
         resetTime?: number;
     } {
@@ -26,14 +26,15 @@ class RateLimitManager {
         let latestResetTime = 0;
 
         for (const endpoint of group) {
-            const limit = this.rateLimits.get(endpoint);
+            const key = this.createKey(endpoint, token)
+            const limit = this.rateLimits.get(key);
             if (!limit) continue;
 
             const now = Date.now();
             if (now < limit.resetTime && limit.remaining <= 0) {
                 latestResetTime = Math.max(latestResetTime, limit.resetTime);
                 const resetTime = new Date(limit?.resetTime || 0).toLocaleString()
-                Log.info(`Rate check NG by ${endpoint} until. ${resetTime}`)
+                Log.info(`Rate check NG by ${key} until. ${resetTime}`)
                 return {
                     canProceed: false,
                     resetTime: latestResetTime
@@ -44,18 +45,19 @@ class RateLimitManager {
         return { canProceed: true };
     }
 
-    // レスポンスヘッダーからレート制限情報を更新
-    updateRateLimit(endpoint: string, headers: Headers, exceeded: boolean = false) {
+    // レスポンスヘッダーからレート制限情報を更新   
+    updateRateLimit(token: string, endpoint: string, headers: Headers, exceeded: boolean = false) {
         const remaining = exceeded ? 0 : parseInt(headers.get('x-rate-limit-remaining') || '0');
         const resetTime = parseInt(headers.get('x-rate-limit-reset') || '0') * 1000;
 
-        this.rateLimits.set(endpoint, {
+        const key = this.createKey(endpoint, token)
+        this.rateLimits.set(key, {
             remaining,
             resetTime
         });
 
-        const limit = this.rateLimits.get(endpoint);
-        Log.info(`Rate limit updated for ${endpoint}:`, {
+        const limit = this.rateLimits.get(key);
+        Log.info(`Rate limit updated for ${key}:`, {
             remaining: limit?.remaining,
             resetTime: new Date(limit?.resetTime || 0).toLocaleString()
         });
@@ -72,6 +74,10 @@ class RateLimitManager {
             const resetDate = new Date(limit.resetTime).toLocaleString();
             Log.info(`Endpoint: ${endpoint}- Remaining: ${limit.remaining}- Reset time: ${resetDate}`);
         });
+    }
+
+    createKey(endpoint: string, token: string) {
+        return endpoint + "-" + token;
     }
 }
 

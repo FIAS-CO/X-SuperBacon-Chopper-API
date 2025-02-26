@@ -355,6 +355,7 @@ export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
 }
 
 export async function fetchUserByScreenNameAsync(screenName: string): Promise<any> {
+    const authToken = await authTokenService.getRequiredToken();
     const headers = await createHeader();
 
     const userParams = new URLSearchParams({
@@ -384,7 +385,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
         `https://api.twitter.com/graphql/k5XapwcSikNsEsILW5FvgA/UserByScreenName?${userParams}`,
         { headers }
     );
-    rateLimitManager.updateRateLimit('UserByScreenName', userResponse.headers);
+    rateLimitManager.updateRateLimit(authToken, 'UserByScreenName', userResponse.headers);
 
     if (!userResponse.ok) {
         const errorText = await userResponse.text();
@@ -394,7 +395,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
         if (userResponse.status === 429) {
             Log.info('Rate limit of UserByScreenName is unexpecedly updated.')
-            rateLimitManager.updateRateLimit('UserByScreenName', userResponse.headers, true);
+            rateLimitManager.updateRateLimit(authToken, 'UserByScreenName', userResponse.headers, true);
             discordNotifyService.notifyRateLimitWithRateRemaining('UserByScreenName(Shadowban Check)');
         } else {
             discordNotifyService.notifyResponseError(userResponse, 'UserByScreenName');
@@ -408,6 +409,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
 
 export async function fetchSearchTimelineAsync(screenName: string): Promise<any> {
+    const authToken = await authTokenService.getRequiredToken();
     const headers = await createHeader();
     const searchParams = new URLSearchParams({
         "variables": JSON.stringify({
@@ -454,7 +456,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         `https://x.com/i/api/graphql/1BP5aKg8NvTNvRCyyCyq8g/SearchTimeline?${searchParams}`,
         { headers }
     );
-    rateLimitManager.updateRateLimit('SearchTimeline', searchResponse.headers);
+    rateLimitManager.updateRateLimit(authToken, 'SearchTimeline', searchResponse.headers);
 
     if (!searchResponse.ok) {
         const errorText = await searchResponse.text();
@@ -462,7 +464,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         Log.error(`Search API Error:`, errorText);
         if (searchResponse.status === 429) {
             Log.info('Rate limit of SearchTimeline is unexpecedly updated.')
-            rateLimitManager.updateRateLimit('SearchTimeline', searchResponse.headers, true);
+            rateLimitManager.updateRateLimit(authToken, 'SearchTimeline', searchResponse.headers, true);
             discordNotifyService.notifyRateLimitWithRateRemaining('SearchTimeline(Shadowban Check)');
         } else {
             discordNotifyService.notifyResponseError(searchResponse, 'SearchTimeline');
@@ -784,7 +786,7 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
 
             if (response.status === 429) {
                 Log.info('Rate limit of UserTweet is unexpecedly updated.')
-                rateLimitManager.updateRateLimit('UserTweets', response.headers, true);
+                rateLimitManager.updateRateLimit(authToken, 'UserTweets', response.headers, true);
                 discordNotifyService.notifyRateLimitWithRateRemaining('UserTweets(Tweet Check)');
             } else {
                 discordNotifyService.notifyResponseError(response, 'UserTweets');
@@ -873,7 +875,7 @@ export async function fetchUserTweetsAsync(authToken: string, userId: string, cu
         `https://x.com/i/api/graphql/Tg82Ez_kxVaJf7OPbUdbCg/UserTweets?${timelineParams}`,
         { headers }
     );
-    rateLimitManager.updateRateLimit('UserTweets', timelineResponse.headers);
+    rateLimitManager.updateRateLimit(authToken, 'UserTweets', timelineResponse.headers);
 
     return timelineResponse;
 }

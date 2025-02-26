@@ -252,7 +252,7 @@ app.get('/api/check-by-user', async (c: Context) => {
       }
     }
 
-    const userSearchLimit = rateLimitManager.checkGroupRateLimit(
+    const userSearchLimit = rateLimitManager.checkGroupRateLimit(authToken,
       rateLimitManager.endpointGroups.userSearchGroup
     );
     if (!userSearchLimit.canProceed) {
@@ -331,7 +331,7 @@ app.get('/api/check-by-user', async (c: Context) => {
     })();
     result.search_suggestion_ban = searchSuggestionBanFlag;
 
-    const timelineLimit = rateLimitManager.checkGroupRateLimit(
+    const timelineLimit = rateLimitManager.checkGroupRateLimit(authToken,
       rateLimitManager.endpointGroups.userTimelineGroup
     );
 
