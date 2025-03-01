@@ -93,9 +93,8 @@ export class DiscordNotifyService {
         await this.sendMessage(message);
     }
 
-
     // auth token切り替え通知用のメソッド
-    async notifyAuthTokenRefresh(oldToken: string, newToken: string, isSuccess: boolean): Promise<void> {
+    async notifyAuthTokenRefresh(accountId: string, oldToken: string, newToken: string, isSuccess: boolean): Promise<void> {
         const status = isSuccess ? "✅ Success" : "❌ Failed";
         const truncatedOldToken = oldToken ? `${oldToken.slice(0, 10)}...` : "None";
         const truncatedNewToken = newToken ? `${newToken.slice(0, 10)}...` : "None";
@@ -103,6 +102,7 @@ export class DiscordNotifyService {
         const message = `
 🔄 **Auth Token Refresh**
 **Status:** ${status}
+        **Account:** ${accountId}
 **Old Token:** \`${truncatedOldToken}\`
 **New Token:** \`${truncatedNewToken}\`
 **Time:** ${this.getJSTDateTime()}

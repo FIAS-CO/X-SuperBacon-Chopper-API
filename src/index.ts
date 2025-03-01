@@ -17,7 +17,6 @@ import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
 import { authTokenService, TwitterAuthTokenService } from './service/TwitterAuthTokenService'
-import { rateLimitManager } from './TwitterUtil/RateLimitManager'
 import { Log } from './util/Log'
 import { discordNotifyService } from './service/DiscordNotifyService'
 
@@ -211,11 +210,6 @@ app.get('/api/check-by-user', async (c: Context) => {
   const monitor = new PerformanceMonitor();
 
   try {
-    const authToken = await authTokenService.getRequiredToken();
-    if (!authToken) {
-      throw new Error("AUTH_TOKEN is not defined");
-    }
-
     const screenName = c.req.query('screen_name');
     if (!screenName) {
       return c.json({ error: 'screen_name parameter is required' }, 400);
@@ -250,17 +244,6 @@ app.get('/api/check-by-user', async (c: Context) => {
           error: undefined as string | undefined
         }
       }
-    }
-
-    const userSearchLimit = rateLimitManager.checkGroupRateLimit(authToken,
-      rateLimitManager.endpointGroups.userSearchGroup
-    );
-    if (!userSearchLimit.canProceed) {
-      const resetDate = new Date(userSearchLimit.resetTime!).toISOString();
-      result.api_status.userSearchGroup.error = `Rate limit reached. Try again after ${resetDate}`;
-      discordNotifyService.notifyRateLimit("Shadowban check", resetDate);
-
-      return c.json(result);
     }
 
     result.api_status.userSearchGroup.rate_limit = false;
@@ -330,21 +313,6 @@ app.get('/api/check-by-user', async (c: Context) => {
       );
     })();
     result.search_suggestion_ban = searchSuggestionBanFlag;
-
-    const timelineLimit = rateLimitManager.checkGroupRateLimit(authToken,
-      rateLimitManager.endpointGroups.userTimelineGroup
-    );
-
-    if (!timelineLimit.canProceed) {
-      const resetDate = new Date(timelineLimit.resetTime!).toISOString();
-      result.api_status.userTimelineGroup.error = `Rate limit reached. Try again after ${resetDate}`;
-      discordNotifyService.notifyRateLimit("Tweet check", resetDate);
-
-      return c.json({
-        ...result,
-        tweets: []
-      });
-    }
 
     result.api_status.userTimelineGroup.rate_limit = false;
 
@@ -417,25 +385,26 @@ app.get('/api/searchtimeline', async (c: Context) => {
   }
 })
 
+// 認証トークン保存エンドポイントを更新
 app.get('/api/save-auth-token', async (c) => {
   try {
     const newToken = c.req.query('token');
-    if (!newToken) {
-      return c.json({ error: 'token parameter is required' }, 400);
+    const accountId = c.req.query('account_id');
+
+    if (!newToken || !accountId) {
+      return c.json({ error: 'token parameter(token, account_id) is required' }, 400);
     }
 
-    const authTokenService = new TwitterAuthTokenService();
-
     // まず既存のトークンを取得
-    const currentToken = await authTokenService.getCurrentToken() ?? "NO_DATA";
+    const currentToken = await authTokenService.getTokenByAccountId(accountId) ?? "NO_DATA";
 
     // 既存のトークンと新しいトークンが異なる場合のみ更新
     if (!currentToken || currentToken !== newToken) {
-      await authTokenService.saveToken(newToken);
+      await authTokenService.saveToken(newToken, accountId);
     }
 
     const isUpdated = currentToken !== newToken;
-    discordNotifyService.notifyAuthTokenRefresh(currentToken, newToken, isUpdated);
+    discordNotifyService.notifyAuthTokenRefresh(accountId, currentToken, newToken, isUpdated);
 
     return c.json({
       old_token: currentToken,
@@ -446,6 +415,32 @@ app.get('/api/save-auth-token', async (c) => {
     console.error('Error saving auth token:', error);
     return c.json({
       error: 'Failed to save auth token',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
+// 全トークン情報の取得エンドポイント
+app.get('/api/get-auth-tokens', async (c) => {
+  try {
+    const tokens = await authTokenService.getAllTokens();
+
+    // レスポンスのためにトークンを整形（機密情報を部分的に隠す）
+    const safeTokens = tokens.map(token => ({
+      id: token.id,
+      accountId: token.accountId,
+      // トークンの一部を隠す
+      token: token.token.substring(0, 5) + '...' + token.token.substring(token.token.length - 5),
+      lastUsed: token.lastUsed,
+      resetTime: token.resetTime,
+      updatedAt: token.updatedAt
+    }));
+
+    return c.json(safeTokens);
+  } catch (error) {
+    console.error('Error fetching auth tokens:', error);
+    return c.json({
+      error: 'Failed to fetch auth tokens',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }

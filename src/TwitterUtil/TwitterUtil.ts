@@ -4,7 +4,6 @@ import { generateRandomHexString } from "../FunctionUtil";
 import { CheckStatus } from "../types/Types";
 import { CheckHistoryService } from "../service/CheckHistoryService";
 import { authTokenService } from "../service/TwitterAuthTokenService";
-import { rateLimitManager } from "./RateLimitManager";
 import { Log } from "../util/Log";
 import { discordNotifyService } from "../service/DiscordNotifyService";
 
@@ -340,7 +339,8 @@ export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
         })
     });
 
-    const headers = await createHeader();
+    const authToken = await authTokenService.getRequiredToken();
+    const headers = await createHeader(authToken);
     const response = await fetch(
         `https://x.com/i/api/graphql/nBS-WpgA6ZG0CyNHD517JQ/TweetDetail?${searchParams}`,
         { headers }
@@ -356,7 +356,7 @@ export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
 
 export async function fetchUserByScreenNameAsync(screenName: string): Promise<any> {
     const authToken = await authTokenService.getRequiredToken();
-    const headers = await createHeader();
+    const headers = await createHeader(authToken);
 
     const userParams = new URLSearchParams({
         "variables": JSON.stringify({
@@ -385,7 +385,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
         `https://api.twitter.com/graphql/k5XapwcSikNsEsILW5FvgA/UserByScreenName?${userParams}`,
         { headers }
     );
-    rateLimitManager.updateRateLimit(authToken, 'UserByScreenName', userResponse.headers);
+    authTokenService.updateRateLimit(authToken, userResponse.headers);
 
     if (!userResponse.ok) {
         const errorText = await userResponse.text();
@@ -395,7 +395,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
         if (userResponse.status === 429) {
             Log.info('Rate limit of UserByScreenName is unexpecedly updated.')
-            rateLimitManager.updateRateLimit(authToken, 'UserByScreenName', userResponse.headers, true);
+            authTokenService.banTokenFor24Hours(authToken);
             discordNotifyService.notifyRateLimitWithRateRemaining('UserByScreenName(Shadowban Check)');
         } else {
             discordNotifyService.notifyResponseError(userResponse, 'UserByScreenName');
@@ -410,7 +410,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
 export async function fetchSearchTimelineAsync(screenName: string): Promise<any> {
     const authToken = await authTokenService.getRequiredToken();
-    const headers = await createHeader();
+    const headers = await createHeader(authToken);
     const searchParams = new URLSearchParams({
         "variables": JSON.stringify({
             "rawQuery": `from:${screenName}`,
@@ -456,7 +456,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         `https://x.com/i/api/graphql/1BP5aKg8NvTNvRCyyCyq8g/SearchTimeline?${searchParams}`,
         { headers }
     );
-    rateLimitManager.updateRateLimit(authToken, 'SearchTimeline', searchResponse.headers);
+    authTokenService.updateRateLimit(authToken, searchResponse.headers);
 
     if (!searchResponse.ok) {
         const errorText = await searchResponse.text();
@@ -464,7 +464,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         Log.error(`Search API Error:`, errorText);
         if (searchResponse.status === 429) {
             Log.info('Rate limit of SearchTimeline is unexpecedly updated.')
-            rateLimitManager.updateRateLimit(authToken, 'SearchTimeline', searchResponse.headers, true);
+            authTokenService.banTokenFor24Hours(authToken);
             discordNotifyService.notifyRateLimitWithRateRemaining('SearchTimeline(Shadowban Check)');
         } else {
             discordNotifyService.notifyResponseError(searchResponse, 'SearchTimeline');
@@ -479,7 +479,8 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
 
 export async function fetchSearchSuggestionAsync(screenName: string, userNameText: string): Promise<any> {
 
-    const headers = await createHeader();
+    const authToken = await authTokenService.getRequiredToken();
+    const headers = await createHeader(authToken);
 
     const suggestionParams = new URLSearchParams({
         "include_ext_is_blue_verified": "1",
@@ -786,7 +787,7 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
 
             if (response.status === 429) {
                 Log.info('Rate limit of UserTweet is unexpecedly updated.')
-                rateLimitManager.updateRateLimit(authToken, 'UserTweets', response.headers, true);
+                authTokenService.banTokenFor24Hours(authToken);
                 discordNotifyService.notifyRateLimitWithRateRemaining('UserTweets(Tweet Check)');
             } else {
                 discordNotifyService.notifyResponseError(response, 'UserTweets');
@@ -875,16 +876,12 @@ export async function fetchUserTweetsAsync(authToken: string, userId: string, cu
         `https://x.com/i/api/graphql/Tg82Ez_kxVaJf7OPbUdbCg/UserTweets?${timelineParams}`,
         { headers }
     );
-    rateLimitManager.updateRateLimit(authToken, 'UserTweets', timelineResponse.headers);
+    authTokenService.updateRateLimit(authToken, timelineResponse.headers);
 
     return timelineResponse;
 }
 
-async function createHeader() {
-    const authToken = await authTokenService.getRequiredToken();
-    if (!authToken) {
-        throw new Error("AUTH_TOKEN is not defined");
-    }
+async function createHeader(authToken: string) {
     const csrfToken = generateRandomHexString(16);
 
     return {

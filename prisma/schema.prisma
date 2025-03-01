@@ -51,3 +51,12 @@ model TwitterAuthToken {
   token     String
   updatedAt DateTime @updatedAt
 }
+
+model AuthToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  accountId String   @unique
+  lastUsed  DateTime @default("2000-01-01T00:00:00Z") // 2000年1月1日をデフォルト値に
+  resetTime DateTime @default(now()) // デフォルトで現在時刻
+  updatedAt DateTime @updatedAt
+}
