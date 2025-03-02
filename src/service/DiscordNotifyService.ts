@@ -72,10 +72,10 @@ export class DiscordNotifyService {
     }
 
     // レートリミット警告用のヘルパーメソッド
-    async notifyRateLimit(endpoint: string, resetTime: string): Promise<void> {
+    async notifyRateLimit(authToken: string, resetTime: string): Promise<void> {
         const message = `
-⚠️ **Rate Limit Alert**
-**Endpoint:** ${endpoint}
+📢 **トークンのリメインが尽きた報告だよ。対応は不要だよ。**
+**Token:** ${authToken}
 **Reset Time:** ${resetTime}
 **Time:** ${this.getJSTDateTime()}
         `.trim();
@@ -83,10 +83,11 @@ export class DiscordNotifyService {
         await this.sendMessage(message);
     }
 
-    async notifyRateLimitWithRateRemaining(endpoint: string): Promise<void> {
+    async notifyRateLimitWithRateRemaining(authToken: string, resetTime: string): Promise<void> {
         const message = `
-⚠️ **Rate Limit Alert But Limit Reaining**
-**Endpoint:** ${endpoint}
+📢 **リメインが残っているのにトークンのレートが制限されたよ。対応は不要だよ。**
+**Token:** ${authToken}
+**Reset Time:** ${resetTime}
 **Time:** ${this.getJSTDateTime()}
         `.trim();
 
@@ -102,7 +103,7 @@ export class DiscordNotifyService {
         const message = `
 🔄 **Auth Token Refresh**
 **Status:** ${status}
-        **Account:** ${accountId}
+**Account:** ${accountId}
 **Old Token:** \`${truncatedOldToken}\`
 **New Token:** \`${truncatedNewToken}\`
 **Time:** ${this.getJSTDateTime()}

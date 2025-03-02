@@ -22,7 +22,8 @@ export class TwitterAuthTokenService {
                 token: token,
                 accountId: accountId,
                 lastUsed: new Date("2000-01-01T00:00:00Z"),
-                resetTime: new Date()
+                resetTime: new Date(),
+                updatedAt: new Date()
             }
         });
     }
@@ -94,6 +95,8 @@ export class TwitterAuthTokenService {
                 resetTime: resetTime
             }
         });
+
+        discordNotifyService.notifyRateLimit(token, DateUtil.formatJST(resetTime))
     }
 
     /**
@@ -117,18 +120,31 @@ export class TwitterAuthTokenService {
             }
         });
 
+        const resetTimeJst = DateUtil.formatJST(resetTime)
         // ログ出力
-        console.log(`Token banned until ${resetTime.toISOString()} due to rate limit`);
+        Log.warn(`Token banned until ${resetTimeJst} due to rate limit`);
+
+        discordNotifyService.notifyRateLimitWithRateRemaining(token, resetTimeJst);
     }
 
     async notifyNoToken(): Promise<void> {
-        const tokens = this.getAllTokens();
+        const tokens = await authTokenService.getAllTokens();
 
-        const message = `
-        🚨 **トークンが全滅しました。トークンを追加してください。**
-        **現在のトークン一覧:**
-        ${tokens}`
-        await discordNotifyService.sendMessage(message);
+        // トークン情報をフィールドとして整形
+        const tokenFields = tokens.map(token => {
+
+            return {
+                name: `トークン: ${token.token}`,
+                value: `XのID: ${token.accountId}\nResetTime: ${token.resetTime}`
+            };
+        });
+
+        await discordNotifyService.sendEmbed({
+            title: "🚨 トークンが全滅しました",
+            description: "利用可能なトークンがありません。トークンを追加してください。",
+            color: 0xFF0000, // 赤色
+            fields: tokenFields
+        });
     }
 
     /**

@@ -346,6 +346,8 @@ export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
         { headers }
     );
 
+    authTokenService.updateRateLimit(authToken, response.headers);
+
     if (!response.ok) {
         return "1970/01/01 00:00:00"
     }
@@ -396,7 +398,6 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
         if (userResponse.status === 429) {
             Log.info('Rate limit of UserByScreenName is unexpecedly updated.')
             authTokenService.banTokenFor24Hours(authToken);
-            discordNotifyService.notifyRateLimitWithRateRemaining('UserByScreenName(Shadowban Check)');
         } else {
             discordNotifyService.notifyResponseError(userResponse, 'UserByScreenName');
         }
@@ -465,7 +466,6 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         if (searchResponse.status === 429) {
             Log.info('Rate limit of SearchTimeline is unexpecedly updated.')
             authTokenService.banTokenFor24Hours(authToken);
-            discordNotifyService.notifyRateLimitWithRateRemaining('SearchTimeline(Shadowban Check)');
         } else {
             discordNotifyService.notifyResponseError(searchResponse, 'SearchTimeline');
         }
@@ -788,7 +788,6 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
             if (response.status === 429) {
                 Log.info('Rate limit of UserTweet is unexpecedly updated.')
                 authTokenService.banTokenFor24Hours(authToken);
-                discordNotifyService.notifyRateLimitWithRateRemaining('UserTweets(Tweet Check)');
             } else {
                 discordNotifyService.notifyResponseError(response, 'UserTweets');
             }

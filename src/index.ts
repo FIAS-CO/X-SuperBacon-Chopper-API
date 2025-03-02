@@ -16,7 +16,7 @@ import { serverDecryption } from './util/ServerDecryption'
 import { CheckHistoryService } from './service/CheckHistoryService'
 import { PerformanceMonitor } from './util/PerformanceMonitor'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
-import { authTokenService, TwitterAuthTokenService } from './service/TwitterAuthTokenService'
+import { authTokenService } from './service/TwitterAuthTokenService'
 import { Log } from './util/Log'
 import { discordNotifyService } from './service/DiscordNotifyService'
 
@@ -360,11 +360,6 @@ app.get('/api/check-by-user', async (c: Context) => {
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
-    const authToken = await authTokenService.getRequiredToken();
-    if (!authToken) {
-      throw new Error("AUTH_TOKEN is not defined");
-    }
-
     const screenName = c.req.query('screen_name');
 
     if (!screenName) {
@@ -451,11 +446,6 @@ app.get('/api/get-auth-tokens', async (c) => {
 //---
 app.get('/api/user-by-screen-name', async (c) => {
   try {
-    const authToken = await authTokenService.getRequiredToken();
-    if (!authToken) {
-      throw new Error("AUTH_TOKEN is not defined");
-    }
-
     const screenName = c.req.query('screen_name');
 
     if (!screenName) {
@@ -482,11 +472,6 @@ app.get('/api/user-by-screen-name', async (c) => {
 
 app.get('/api/user-id', async (c) => {
   try {
-    const authToken = await authTokenService.getRequiredToken();
-    if (!authToken) {
-      throw new Error("AUTH_TOKEN is not defined");
-    }
-
     const screenName = c.req.query('screen_name');
 
     if (!screenName) {
@@ -788,7 +773,8 @@ app.get('/api/decrypt-ip', async (c: Context) => {
 
 app.get('/api/testtest', async (c: Context) => {
   try {
-    discordNotifyService.notifyRateLimit("test", new Date().toDateString())
+    const token = "cda2385aed36d2fbb9985586c290c7434df3ed07";
+    authTokenService.updateTokenResetTime(token, 111)
 
     return c.json({
       test: "test"
