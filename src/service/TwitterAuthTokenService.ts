@@ -36,35 +36,36 @@ export class TwitterAuthTokenService {
         // 現在時刻の取得
         const now = new Date();
 
-        // レート制限が解除されているトークンの中で、最も長く使われていないものを取得
-        const token = await prisma.authToken.findFirst({
+        // レート制限されていないトークンをすべて取得
+        const availableTokens = await prisma.authToken.findMany({
             where: {
                 resetTime: {
                     lt: now // resetTimeが現在時刻より前（制限解除済み）のみを条件に
                 }
-            },
-            orderBy: {
-                lastUsed: 'asc', // 最も長く使われていないものを選択
-            },
+            }
         });
 
-        // トークンが見つからない場合（全てレート制限中の場合）
-        if (!token) {
+        // 利用可能なトークンがない場合（全てレート制限中の場合）
+        if (availableTokens.length === 0) {
             this.notifyNoToken();
             throw new Error('Auth token not available: all tokens are rate limited');
         }
 
-        // 使用したトークンの最終使用時間を更新
+        // 利用可能なトークンからランダムに1つ選択
+        const randomIndex = Math.floor(Math.random() * availableTokens.length);
+        const selectedToken = availableTokens[randomIndex];
+
+        // 選択したトークンの最終使用時間を更新
         await prisma.authToken.update({
             where: {
-                id: token.id
+                id: selectedToken.id
             },
             data: {
                 lastUsed: now
             }
         });
 
-        return token.token;
+        return selectedToken.token;
     }
 
     // レスポンスヘッダーからレート制限情報を更新   
