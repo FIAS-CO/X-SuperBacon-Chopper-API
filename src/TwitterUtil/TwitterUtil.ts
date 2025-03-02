@@ -399,7 +399,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
             Log.info('Rate limit of UserByScreenName is unexpecedly updated.')
             authTokenService.banTokenFor24Hours(authToken);
         } else {
-            discordNotifyService.notifyResponseError(userResponse, 'UserByScreenName');
+            discordNotifyService.notifyResponseError(userResponse, 'UserByScreenName', authToken);
         }
         throw new Error(`Twitter API returned status: ${userResponse.status}, Error: ${errorText}`);
     }
@@ -467,7 +467,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
             Log.info('Rate limit of SearchTimeline is unexpecedly updated.')
             authTokenService.banTokenFor24Hours(authToken);
         } else {
-            discordNotifyService.notifyResponseError(searchResponse, 'SearchTimeline');
+            discordNotifyService.notifyResponseError(searchResponse, 'SearchTimeline', authToken);
         }
         throw new Error(`Search API returned status: ${searchResponse.status}, Error: ${errorText}`);
     }
@@ -789,7 +789,7 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
                 Log.info('Rate limit of UserTweet is unexpecedly updated.')
                 authTokenService.banTokenFor24Hours(authToken);
             } else {
-                discordNotifyService.notifyResponseError(response, 'UserTweets');
+                discordNotifyService.notifyResponseError(response, 'UserTweets', authToken);
             }
             throw new Error(`Twitter API returned status: ${response.status}`);
         }

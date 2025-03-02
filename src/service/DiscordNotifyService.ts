@@ -59,12 +59,13 @@ export class DiscordNotifyService {
         await this.sendMessage(message);
     }
 
-    async notifyResponseError(response: Response, context: string): Promise<void> {
+    async notifyResponseError(response: Response, context: string, token: string): Promise<void> {
         const message = `
         🚨 **Error Alert**
         **Context:** ${context}
         **Status:** ${response.status}
         **Text:** ${response.text}
+        **Token:** ${token}
         **Time:** ${this.getJSTDateTime()}
                 `.trim();
 
