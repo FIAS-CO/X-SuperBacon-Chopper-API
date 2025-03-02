@@ -132,6 +132,46 @@ app.get('/api/get-history-2n7b4x9k5m1p3v8h6j4w', async (c: Context) => {
   }
 })
 
+app.get('/api/get-history-500-2n7b4x9k5m1p3v8h6j4w', async (c: Context) => {
+  try {
+    const history = await prisma.twitterCheck.findMany({
+      orderBy: {
+        id: 'desc',
+      },
+      take: 500 // Limit to 500 records
+    })
+
+    function toJST(date: Date) {
+      return date.toLocaleString('ja-JP', {
+        timeZone: 'Asia/Tokyo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }) + ' JST'
+    }
+
+    // UTCから日本時間に変換
+    const historyWithJST = history.map(({ ...record }) => {
+      const date = toJST(new Date(record.date))
+      const tweetDate = record.tweetDate ? toJST(new Date(record.tweetDate)) : ""
+      return {
+        ...record,
+        date: date,
+        tweetDate: tweetDate
+      }
+    })
+
+    return c.json(historyWithJST)
+  } catch (error) {
+    console.error(error)
+    return c.json({ error: 'Failed to fetch users' }, 500)
+  }
+})
+
+
 app.get('/api/get-history-shadowban-8f4k9p2m7n3x6v1q5w8d', async (c: Context) => {
   try {
     const history = await prisma.shadowBanCheck.findMany({
@@ -167,6 +207,44 @@ app.get('/api/get-history-shadowban-8f4k9p2m7n3x6v1q5w8d', async (c: Context) =>
     return c.json({ error: 'Failed to fetch users' }, 500)
   }
 })
+
+app.get('/api/get-history-500-shadowban-8f4k9p2m7n3x6v1q5w8d', async (c: Context) => {
+  try {
+    const history = await prisma.shadowBanCheck.findMany({
+      orderBy: {
+        id: 'desc',
+      },
+      take: 500 // Limit to 500 records
+    })
+
+    function toJST(date: Date) {
+      return date.toLocaleString('ja-JP', {
+        timeZone: 'Asia/Tokyo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }) + ' JST'
+    }
+
+    // UTCから日本時間に変換
+    const historyWithJST = history.map(({ ...record }) => {
+      const date = toJST(new Date(record.date))
+      return {
+        ...record,
+        date: date,
+      }
+    })
+
+    return c.json(historyWithJST)
+  } catch (error) {
+    console.error(error)
+    return c.json({ error: 'Failed to fetch users' }, 500)
+  }
+})
+
 
 app.get('/api/get-history-by-session-id', async (c: Context) => {
   try {
