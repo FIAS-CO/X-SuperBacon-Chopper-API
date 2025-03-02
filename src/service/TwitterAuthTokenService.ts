@@ -64,7 +64,6 @@ export class TwitterAuthTokenService {
             }
         });
 
-        Log.info(`AuthToken: ${token.token}`)
         return token.token;
     }
 
