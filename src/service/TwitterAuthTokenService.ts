@@ -100,6 +100,33 @@ export class TwitterAuthTokenService {
     }
 
     /**
+     * 無効になったトークンを削除する
+     * @param token 削除するトークン
+     * @returns 削除されたトークンの情報、存在しない場合はnull
+     */
+    async deleteToken(token: string): Promise<any> {
+        try {
+            const deletedToken = await prisma.authToken.delete({
+                where: {
+                    token: token
+                }
+            });
+
+            Log.info(`認証トークンが削除されました: ${token.substring(0, 5)}...${token.substring(token.length - 5)}`);
+            discordNotifyService.sendMessage(`
+🗑️ **認証トークンが削除されました**
+**Token:** ${token.substring(0, 5)}...${token.substring(token.length - 5)}
+**Account:** ${deletedToken.accountId}
+            `);
+
+            return deletedToken;
+        } catch (error) {
+            Log.error(`トークン削除中にエラーが発生しました: ${error}`);
+            return null;
+        }
+    }
+
+    /**
     * 指定したトークンのresetTimeを24時間後に設定する
     * レート制限エラー(429)が発生した場合に呼び出す
     * @param token バンするトークン

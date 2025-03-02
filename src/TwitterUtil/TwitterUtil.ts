@@ -390,18 +390,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
     authTokenService.updateRateLimit(authToken, userResponse.headers);
 
     if (!userResponse.ok) {
-        const errorText = await userResponse.text();
-
-        const jstDate = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-        console.error(`[${jstDate}] Twitter API Error:`, errorText);
-
-        if (userResponse.status === 429) {
-            Log.info('Rate limit of UserByScreenName is unexpecedly updated.')
-            authTokenService.banTokenFor24Hours(authToken);
-        } else {
-            discordNotifyService.notifyResponseError(userResponse, 'UserByScreenName', authToken);
-        }
-        throw new Error(`Twitter API returned status: ${userResponse.status}, Error: ${errorText}`);
+        return await handleTwitterApiError(userResponse, authToken, 'UserByScreenName');
     }
 
     const { data: { user } } = await userResponse.json()
@@ -460,16 +449,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
     authTokenService.updateRateLimit(authToken, searchResponse.headers);
 
     if (!searchResponse.ok) {
-        const errorText = await searchResponse.text();
-
-        Log.error(`Search API Error:`, errorText);
-        if (searchResponse.status === 429) {
-            Log.info('Rate limit of SearchTimeline is unexpecedly updated.')
-            authTokenService.banTokenFor24Hours(authToken);
-        } else {
-            discordNotifyService.notifyResponseError(searchResponse, 'SearchTimeline', authToken);
-        }
-        throw new Error(`Search API returned status: ${searchResponse.status}, Error: ${errorText}`);
+        return await handleTwitterApiError(searchResponse, authToken, 'SearchTimeline');
     }
 
     const searchData = await searchResponse.json()
@@ -782,16 +762,7 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
         // API呼び出し
         const response = await fetchUserTweetsAsync(authToken, userId, cursor);
         if (!response.ok) {
-            const errorText = await response.text();
-            Log.error(`Search API Error:`, errorText);
-
-            if (response.status === 429) {
-                Log.info('Rate limit of UserTweet is unexpecedly updated.')
-                authTokenService.banTokenFor24Hours(authToken);
-            } else {
-                discordNotifyService.notifyResponseError(response, 'UserTweets', authToken);
-            }
-            throw new Error(`Twitter API returned status: ${response.status}`);
+            return await handleTwitterApiError(response, authToken, 'UserTweets');
         }
 
         const data = await response.json();
@@ -889,4 +860,30 @@ async function createHeader(authToken: string) {
         Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
         "X-Csrf-Token": csrfToken,
     };
-} 
+}
+
+/**
+ * Twitter APIからのエラーレスポンスを処理する
+ * @param response エラーとなったレスポンス
+ * @param authToken 使用された認証トークン
+ * @param contextName API呼び出しのコンテキスト名
+ * @throws 常にエラーをスロー
+ */
+async function handleTwitterApiError(response: Response, authToken: string, contextName: string): Promise<never> {
+    const errorText = await response.text();
+    Log.error(`${contextName} API Error:`, errorText);
+
+    if (response.status === 429) {
+        // レート制限エラー
+        await authTokenService.banTokenFor24Hours(authToken);
+    } else if (response.status === 401) {
+        // 認証エラー - トークンが無効
+        Log.warn(`Auth token invalid (401): ${authToken.substring(0, 5)}...`);
+        await authTokenService.deleteToken(authToken);
+    } else {
+        // その他のエラー
+        await discordNotifyService.notifyResponseError(response, contextName, authToken);
+    }
+
+    throw new Error(`${contextName} API returned status: ${response.status}, Error: ${errorText}`);
+}
