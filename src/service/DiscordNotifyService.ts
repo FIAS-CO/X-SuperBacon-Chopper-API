@@ -64,7 +64,7 @@ export class DiscordNotifyService {
         🚨 **Error Alert**
         **Context:** ${context}
         **Status:** ${response.status}
-        **Text:** ${response.text}
+        **Text:** ${response.text()}
         **Token:** ${token}
         **Time:** ${this.getJSTDateTime()}
                 `.trim();
