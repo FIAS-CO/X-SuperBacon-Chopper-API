@@ -59,16 +59,15 @@ export class DiscordNotifyService {
         await this.sendMessage(message);
     }
 
-    async notifyResponseError(response: Response, context: string, token: string): Promise<void> {
-        // const errorText = await response.text();
-        //,        ** Text:** ${ errorText }
+    async notifyApiError(status: number, errorText: string, context: string, token: string): Promise<void> {
         const message = `
-        🚨 **Error Alert**
-        **Context:** ${context}
-        **Status:** ${response.status}
-        **Token:** ${token}
-        **Time:** ${this.getJSTDateTime()}
-                `.trim();
+🚨 **API Error Alert**
+**Context:** ${context}
+**Status:** ${status}
+**Error:** ${errorText?.substring(0, 1500) || "No error text"}
+**Token:** ${token}
+**Time:** ${this.getJSTDateTime()}
+            `.trim();
 
         await this.sendMessage(message);
     }

@@ -882,7 +882,12 @@ async function handleTwitterApiError(response: Response, authToken: string, cont
         await authTokenService.deleteToken(authToken);
     } else {
         // その他のエラー
-        await discordNotifyService.notifyResponseError(response, contextName, authToken);
+        await discordNotifyService.notifyApiError(
+            response.status,
+            errorText,
+            contextName,
+            authToken
+        );
     }
 
     throw new Error(`${contextName} API returned status: ${response.status}, Error: ${errorText}`);
