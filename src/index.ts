@@ -402,6 +402,7 @@ app.get('/api/save-auth-token', async (c) => {
     discordNotifyService.notifyAuthTokenRefresh(accountId, currentToken, newToken, isUpdated);
 
     return c.json({
+      account: accountId,
       old_token: currentToken,
       new_token: newToken,
       is_updated: isUpdated
