@@ -30,19 +30,29 @@ export class TwitterAuthTokenService {
 
     /**
      * 現在のトークンを取得し、存在しない場合はエラーをスロー
-     * @throws Error トークンが存在しない場合
      */
     async getRequiredToken(): Promise<string> {
-        // 現在時刻の取得
         const now = new Date();
 
-        // レート制限されていないトークンをすべて取得
+        /**
+         * 現在時刻に基づいて5分ごとのタイムスロットを計算
+         * 深夜0時からの経過分数を5で割った商（5分ごとに1ずつ増加する値）
+         * 
+         * 例:
+         * - 00:00 => (0*60+0)/5 = 0
+         * - 00:05 => (0*60+5)/5 = 1
+         * - 01:00 => (1*60+0)/5 = 12
+         * - 08:09 => (8*60+9)/5 = 97（小数点以下切り捨て）
+         */
+        const totalMinutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
+        const timeSlot = Math.floor(totalMinutesSinceMidnight / 5);
+
+        // 利用可能なトークンを取得
         const availableTokens = await prisma.authToken.findMany({
             where: {
-                resetTime: {
-                    lt: now // resetTimeが現在時刻より前（制限解除済み）のみを条件に
-                }
-            }
+                resetTime: { lt: now } // 制限解除済みのもののみ
+            },
+            orderBy: { id: 'asc' } // 安定したソート順
         });
 
         // 利用可能なトークンがない場合（全てレート制限中の場合）
@@ -51,19 +61,17 @@ export class TwitterAuthTokenService {
             throw new Error('Auth token not available: all tokens are rate limited');
         }
 
-        // 利用可能なトークンからランダムに1つ選択
-        const randomIndex = Math.floor(Math.random() * availableTokens.length);
-        const selectedToken = availableTokens[randomIndex];
+        // 利用可能なトークン数に対するmodを取って選択
+        const selectedIndex = timeSlot % availableTokens.length;
+        const selectedToken = availableTokens[selectedIndex];
 
-        // 選択したトークンの最終使用時間を更新
+        // 使用記録を更新
         await prisma.authToken.update({
-            where: {
-                id: selectedToken.id
-            },
-            data: {
-                lastUsed: now
-            }
+            where: { id: selectedToken.id },
+            data: { lastUsed: now }
         });
+
+        Log.info(`Using token ${selectedToken.token.substring(0, 5)}... (ID: ${selectedToken.id}, index: ${selectedIndex}) for time slot ${timeSlot}`);
 
         return selectedToken.token;
     }
@@ -148,6 +156,7 @@ export class TwitterAuthTokenService {
         });
 
         const resetTimeJst = DateUtil.formatJST(resetTime)
+        // TODO ログにアカウント名を含める
         // ログ出力
         Log.warn(`Token banned until ${resetTimeJst} due to rate limit`);
 
