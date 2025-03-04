@@ -92,7 +92,18 @@ export class TwitterAuthTokenService {
     async updateTokenResetTime(token: string, resetTimeUnix: number): Promise<void> {
         if (resetTimeUnix <= 0) return;
 
+        const currentToken = await prisma.authToken.findUnique({
+            where: { token: token }
+        });
+
         const resetTime = new Date(resetTimeUnix * 1000); // UNIXタイムスタンプをDateに変換
+
+        // 現在のresetTimeと新しいresetTimeが同じ場合は更新しない
+        if (currentToken && currentToken.resetTime.getTime() === resetTime.getTime()) {
+            Log.info(`トークン ${token.substring(0, 5)}... の resetTime は既に最新です`);
+            return;
+        }
+
         await prisma.authToken.update({
             where: {
                 token: token
