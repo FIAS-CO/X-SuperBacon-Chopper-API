@@ -71,8 +71,6 @@ export class TwitterAuthTokenService {
             data: { lastUsed: now }
         });
 
-        Log.info(`Using token ${selectedToken.token.substring(0, 5)}... (ID: ${selectedToken.id}, index: ${selectedIndex}) for time slot ${timeSlot}`);
-
         return selectedToken.token;
     }
 
