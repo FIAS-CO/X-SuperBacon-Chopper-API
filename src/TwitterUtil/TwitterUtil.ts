@@ -51,7 +51,7 @@ export async function batchCheckTweets(tweetInfos: TweetInfo[], ip: string, sess
                         : inputUrl;
 
                     const statusResult = await checkTweetStatus(targetUrl, true);
-                    const tweetDate = await fetchTweetCreatedAt(targetUrl);
+                    const tweetDate = "1970/01/01 00:00:00";
 
                     // 履歴作成は後でバッチ処理する
                     return {
@@ -274,84 +274,6 @@ export function extractTweetId(url: string): string {
         console.error('Error extracting tweet ID:', error);
         return "invalid_id";
     }
-}
-
-function getTweetCreatedAt(data: any): string {
-    try {
-        const created_at = data?.data?.threaded_conversation_with_injections_v2?.instructions?.[0]
-            ?.entries?.[0]?.content?.itemContent?.tweet_results?.result?.legacy?.created_at;
-        return created_at || "1970/01/01 00:00:00";
-    } catch (error) {
-        console.error('Error extracting tweet date:', error);
-        throw error;
-    }
-}
-
-export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
-    var tweetId;
-    try {
-        tweetId = extractTweetId(targetUrl)
-    } catch (error) {
-        return "1970/01/01 00:00:00";
-    }
-
-    const searchParams = new URLSearchParams({
-        "variables": JSON.stringify({
-            "focalTweetId": tweetId,
-            "with_rux_injections": false,
-            "rankingMode": "Relevance",
-            "includePromotedContent": true,
-            "withCommunity": true,
-            "withQuickPromoteEligibilityTweetFields": true,
-            "withBirdwatchNotes": true,
-            "withVoice": true
-        }),
-        "features": JSON.stringify({
-            "rweb_tipjar_consumption_enabled": true,
-            "responsive_web_graphql_exclude_directive_enabled": true,
-            "verified_phone_label_enabled": false,
-            "creator_subscriptions_tweet_preview_api_enabled": true,
-            "responsive_web_graphql_timeline_navigation_enabled": true,
-            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
-            "communities_web_enable_tweet_community_results_fetch": true,
-            "c9s_tweet_anatomy_moderator_badge_enabled": true,
-            "articles_preview_enabled": true,
-            "responsive_web_edit_tweet_api_enabled": true,
-            "graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
-            "view_counts_everywhere_api_enabled": true,
-            "longform_notetweets_consumption_enabled": true,
-            "responsive_web_twitter_article_tweet_consumption_enabled": true,
-            "tweet_awards_web_tipping_enabled": false,
-            "creator_subscriptions_quote_tweet_preview_enabled": false,
-            "freedom_of_speech_not_reach_fetch_enabled": true,
-            "standardized_nudges_misinfo": true,
-            "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
-            "rweb_video_timestamps_enabled": true,
-            "longform_notetweets_rich_text_read_enabled": true,
-            "longform_notetweets_inline_media_enabled": true,
-            "responsive_web_enhance_cards_enabled": false
-        }),
-        "fieldToggles": JSON.stringify({
-            "withArticleRichContentState": true,
-            "withArticlePlainText": false,
-            "withGrokAnalyze": false,
-            "withDisallowedReplyControls": false
-        })
-    });
-
-    const authToken = await authTokenService.getRequiredToken();
-    const headers = await createHeader(authToken);
-    const response = await fetch(
-        `https://x.com/i/api/graphql/nBS-WpgA6ZG0CyNHD517JQ/TweetDetail?${searchParams}`,
-        { headers }
-    );
-
-    if (!response.ok) {
-        return "1970/01/01 00:00:00"
-    }
-
-    const data = await response.json();
-    return getTweetCreatedAt(data);
 }
 
 export async function fetchUserByScreenNameAsync(screenName: string): Promise<any> {
