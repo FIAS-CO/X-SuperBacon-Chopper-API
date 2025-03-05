@@ -346,8 +346,6 @@ export async function fetchTweetCreatedAt(targetUrl: string): Promise<string> {
         { headers }
     );
 
-    authTokenService.updateRateLimit(authToken, response.headers);
-
     if (!response.ok) {
         return "1970/01/01 00:00:00"
     }
