@@ -257,9 +257,11 @@ export class TwitterAuthTokenService {
 
     // レートリミット警告用のヘルパーメソッド
     async notifyRateLimit(authToken: string, resetTime: string): Promise<void> {
+        const account = await authTokenService.getAccountIdByToken(authToken);
         const message = `
 📢 **トークンのリメインが尽きた報告だよ。対応は不要だよ。**
 **Token:** ${authToken}
+**Account:** ${account}
 **Reset Time:** ${resetTime}
         `.trim();
 
@@ -267,9 +269,11 @@ export class TwitterAuthTokenService {
     }
 
     async notifyRateLimitWithRateRemaining(authToken: string, resetTime: string): Promise<void> {
+        const account = await authTokenService.getAccountIdByToken(authToken);
         const message = `
 📢 **リメインが残っているのにトークンのレートが制限されたよ。対応は不要だよ。**
 **Token:** ${authToken}
+**Account:** ${account}
 **Reset Time:** ${resetTime}
         `.trim();
 
