@@ -113,7 +113,7 @@ export class TwitterAuthTokenService {
             }
         });
 
-        discordNotifyService.notifyRateLimit(token, DateUtil.formatJST(resetTime))
+        this.notifyRateLimit(token, DateUtil.formatJST(resetTime))
     }
 
     /**
@@ -169,7 +169,7 @@ export class TwitterAuthTokenService {
         // ログ出力
         Log.warn(`Token banned until ${resetTimeJst} due to rate limit`);
 
-        discordNotifyService.notifyRateLimitWithRateRemaining(token, resetTimeJst);
+        this.notifyRateLimitWithRateRemaining(token, resetTimeJst);
     }
 
     async notifyNoToken(): Promise<void> {
@@ -238,6 +238,42 @@ export class TwitterAuthTokenService {
         });
 
         return entry?.token ?? null;
+    }
+
+    /**
+     * 指定したトークンに対応するアカウントIDを取得
+     * @param token トークン
+     * @returns アカウントID。存在しない場合は "NoUser"
+     */
+    async getAccountIdByToken(token: string): Promise<string> {
+        const entry = await prisma.authToken.findUnique({
+            where: {
+                token: token
+            }
+        });
+
+        return entry?.accountId ?? "NoUser";
+    }
+
+    // レートリミット警告用のヘルパーメソッド
+    async notifyRateLimit(authToken: string, resetTime: string): Promise<void> {
+        const message = `
+📢 **トークンのリメインが尽きた報告だよ。対応は不要だよ。**
+**Token:** ${authToken}
+**Reset Time:** ${resetTime}
+        `.trim();
+
+        await discordNotifyService.sendMessage(message);
+    }
+
+    async notifyRateLimitWithRateRemaining(authToken: string, resetTime: string): Promise<void> {
+        const message = `
+📢 **リメインが残っているのにトークンのレートが制限されたよ。対応は不要だよ。**
+**Token:** ${authToken}
+**Reset Time:** ${resetTime}
+        `.trim();
+
+        await discordNotifyService.sendMessage(message);
     }
 }
 

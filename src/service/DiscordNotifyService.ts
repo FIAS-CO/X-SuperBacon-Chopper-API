@@ -73,27 +73,6 @@ export class DiscordNotifyService {
         await this.sendMessage(message);
     }
 
-    // レートリミット警告用のヘルパーメソッド
-    async notifyRateLimit(authToken: string, resetTime: string): Promise<void> {
-        const message = `
-📢 **トークンのリメインが尽きた報告だよ。対応は不要だよ。**
-**Token:** ${authToken}
-**Reset Time:** ${resetTime}
-        `.trim();
-
-        await this.sendMessage(message);
-    }
-
-    async notifyRateLimitWithRateRemaining(authToken: string, resetTime: string): Promise<void> {
-        const message = `
-📢 **リメインが残っているのにトークンのレートが制限されたよ。対応は不要だよ。**
-**Token:** ${authToken}
-**Reset Time:** ${resetTime}
-        `.trim();
-
-        await this.sendMessage(message);
-    }
-
     // auth token切り替え通知用のメソッド
     async notifyAuthTokenRefresh(accountId: string, oldToken: string, newToken: string, isSuccess: boolean): Promise<void> {
         const status = isSuccess ? "✅ Success" : "❌ Failed";
