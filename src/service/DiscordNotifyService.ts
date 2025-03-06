@@ -24,13 +24,16 @@ export class DiscordNotifyService {
 
     async sendMessage(content: string): Promise<boolean> {
         try {
+            // メッセージの末尾に常に日本時間を追加
+            const timeStampedContent = `${content}\n**Time:** ${this.getJSTDateTime()}`;
+
             const response = await fetch(this.webhookUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    content: content
+                    content: timeStampedContent
                 })
             });
 
@@ -53,7 +56,6 @@ export class DiscordNotifyService {
 **Context:** ${context}
 **Error:** ${error.message}
 **Stack:** \`\`\`${error.stack?.slice(0, 200)}...\`\`\`
-**Time:** ${this.getJSTDateTime()}
         `.trim();
 
         await this.sendMessage(message);
@@ -66,7 +68,6 @@ export class DiscordNotifyService {
 **Status:** ${status}
 **Error:** ${errorText?.substring(0, 1500) || "No error text"}
 **Token:** ${token}
-**Time:** ${this.getJSTDateTime()}
             `.trim();
 
         await this.sendMessage(message);
@@ -78,7 +79,6 @@ export class DiscordNotifyService {
 📢 **トークンのリメインが尽きた報告だよ。対応は不要だよ。**
 **Token:** ${authToken}
 **Reset Time:** ${resetTime}
-**Time:** ${this.getJSTDateTime()}
         `.trim();
 
         await this.sendMessage(message);
@@ -89,7 +89,6 @@ export class DiscordNotifyService {
 📢 **リメインが残っているのにトークンのレートが制限されたよ。対応は不要だよ。**
 **Token:** ${authToken}
 **Reset Time:** ${resetTime}
-**Time:** ${this.getJSTDateTime()}
         `.trim();
 
         await this.sendMessage(message);
@@ -107,7 +106,6 @@ export class DiscordNotifyService {
 **Account:** ${accountId}
 **Old Token:** \`${truncatedOldToken}\`
 **New Token:** \`${truncatedNewToken}\`
-**Time:** ${this.getJSTDateTime()}
         `.trim();
 
         await this.sendMessage(message);
