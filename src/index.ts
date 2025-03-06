@@ -531,14 +531,9 @@ app.get('/api/user-by-screen-name', async (c) => {
       return c.json({ error: 'screen_name parameter is required' }, 400);
     }
 
-    const response = await fetchUserByScreenNameAsync(screenName);
+    const json = await fetchUserByScreenNameAsync(screenName);
 
-    if (!response.ok) {
-      throw new Error(`Twitter API returned status: ${response.status}`);
-    }
-
-    const { data: { user } } = await response.json();
-    return c.json({ data: { user } });
+    return c.json(json);
 
   } catch (error) {
     console.error('Error:', error);
