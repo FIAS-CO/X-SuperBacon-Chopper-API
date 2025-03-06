@@ -504,7 +504,7 @@ app.get('/api/get-auth-tokens', async (c) => {
       id: token.id,
       accountId: token.accountId,
       // トークンの一部を隠す
-      token: token.token.substring(0, 5) + '...' + token.token.substring(token.token.length - 5),
+      token: token.token,
       lastUsed: token.lastUsed,
       resetTime: token.resetTime,
       updatedAt: token.updatedAt
