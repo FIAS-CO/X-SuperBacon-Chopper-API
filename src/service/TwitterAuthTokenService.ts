@@ -205,9 +205,6 @@ export class TwitterAuthTokenService {
 
         // レスポンスのためにトークンを整形（機密情報を部分的に隠す）
         const safeTokens = tokens.map(token => {
-            // トークンの一部を隠す
-            const maskedToken = token.token.substring(0, 5) + '...' + token.token.substring(token.token.length - 5);
-
             // 日付を日本時間に変換
             const lastUsedJST = DateUtil.formatJST(token.lastUsed);
             const resetTimeJST = DateUtil.formatJST(token.resetTime);
@@ -216,7 +213,7 @@ export class TwitterAuthTokenService {
             return {
                 id: token.id,
                 accountId: token.accountId,
-                token: maskedToken,
+                token: token.token,
                 lastUsed: lastUsedJST,
                 resetTime: resetTimeJST,
                 updatedAt: updatedAtJST,

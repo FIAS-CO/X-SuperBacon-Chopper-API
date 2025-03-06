@@ -503,7 +503,6 @@ app.get('/api/get-auth-tokens', async (c) => {
     const safeTokens = tokens.map(token => ({
       id: token.id,
       accountId: token.accountId,
-      // トークンの一部を隠す
       token: token.token,
       lastUsed: token.lastUsed,
       resetTime: token.resetTime,
