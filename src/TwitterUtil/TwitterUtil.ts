@@ -315,14 +315,6 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
     const { data: { user } } = await userResponse.json()
 
-    if (!user.result) {
-        discordNotifyService.sendMessage(`
-  🚨 **ユーザーの人間証明が求められてるかも。対応してください。**
-  **Token:** ${authToken}
-  **Account:** ${authTokenService.getAccountIdByToken(authToken)}
-         `.trim());
-    }
-
     return user;
 }
 
