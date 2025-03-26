@@ -284,11 +284,11 @@ export interface ShadowBanCheckResult {
 }
 
 app.get('/api/check-by-user', async (c: Context) => {
-
   const monitor = new PerformanceMonitor();
+  let screenName: string | undefined = undefined;
 
   try {
-    const screenName = c.req.query('screen_name');
+    screenName = c.req.query('screen_name');
     if (!screenName) {
       return c.json({ error: 'screen_name parameter is required' }, 400);
     }
@@ -429,6 +429,13 @@ app.get('/api/check-by-user', async (c: Context) => {
 
   } catch (error) {
     console.error('Error:', error);
+
+    // Discordに通知を送信
+    await discordNotifyService.notifyError(
+      error instanceof Error ? error : new Error(String(error)),
+      `API: check-by-user (screenName: ${screenName})`
+    );
+
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
