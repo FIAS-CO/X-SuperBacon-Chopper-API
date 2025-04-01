@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { ShadowBanCheckResult } from '..';
+import { Log } from '../util/Log';
 
 const prisma = new PrismaClient();
 
@@ -24,7 +25,7 @@ export class ShadowbanHistoryService {
 
             return result;
         } catch (error) {
-            console.error(`Error creating shadowban history for user ${screenName}:`, error);
+            Log.error(`Error creating shadowban history for user ${screenName}:`, error);
             throw error;
         }
     }
@@ -36,13 +37,13 @@ export class ShadowbanHistoryService {
             });
 
             if (!checkResults) {
-                console.log(`No shadowban check data found for sessionId ${sessionId}`);
+                Log.info(`No shadowban check data found for sessionId ${sessionId}`);
                 return null;
             }
 
             return checkResults;
         } catch (error) {
-            console.error(`Error getting shadowban history for sessionId ${sessionId}:`, error);
+            Log.error(`Error getting shadowban history for sessionId ${sessionId}:`, error);
             throw error;
         }
     }

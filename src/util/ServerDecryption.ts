@@ -1,3 +1,5 @@
+import { Log } from "./Log";
+
 export class ServerDecryption {
     decrypt(encryptedData: string): string {
         try {
@@ -7,7 +9,7 @@ export class ServerDecryption {
                     .split('').reverse().join('')
             );
         } catch (error) {
-            console.error('Decryption error:', error);
+            Log.error('Decryption error:', error);
             return '';
         }
     }

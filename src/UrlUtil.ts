@@ -1,3 +1,4 @@
+import { Log } from "./util/Log"
 
 // t.co URLを展開する関数
 export async function expandUrl(shortUrl: string): Promise<string> {
@@ -13,7 +14,7 @@ export async function expandUrl(shortUrl: string): Promise<string> {
         })
         return response.url
     } catch (error) {
-        console.error(`URL expansion error for ${shortUrl}:`, error)
+        Log.error(`URL expansion error for ${shortUrl}:`, error)
         return shortUrl
     }
 }

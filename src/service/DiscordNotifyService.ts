@@ -1,3 +1,5 @@
+import { Log } from "../util/Log";
+
 // discordNotify.ts
 export class DiscordNotifyService {
     private webhookUrl: string;
@@ -38,13 +40,13 @@ export class DiscordNotifyService {
             });
 
             if (!response.ok) {
-                console.error('Discord Webhook Error:', await response.text());
+                Log.error('Discord Webhook Error:', await response.text());
                 return false;
             }
 
             return true;
         } catch (error) {
-            console.error('Discord Webhook Error:', error);
+            Log.error('Discord Webhook Error:', error);
             return false;
         }
     }
@@ -125,7 +127,7 @@ export class DiscordNotifyService {
 
             return true;
         } catch (error) {
-            console.error('Error sending embed message:', error);
+            Log.error('Error sending embed message:', error);
             return false;
         }
     }

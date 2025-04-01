@@ -59,7 +59,7 @@ app.get('/api/oembed', async (c: Context) => {
     return c.json(data)
 
   } catch (error) {
-    console.error('Error:', error)
+    Log.error('/api/oembedのError:', error)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
@@ -86,7 +86,7 @@ app.post('/api/check-batch', async (c: Context) => {
     });
 
   } catch (error) {
-    console.error('Error:', error);
+    Log.error('/api/check-batchのError:', error);
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -127,7 +127,7 @@ app.get('/api/get-history-2n7b4x9k5m1p3v8h6j4w', async (c: Context) => {
 
     return c.json(historyWithJST)
   } catch (error) {
-    console.error(error)
+    Log.error("get-historyのエラー", error)
     return c.json({ error: 'Failed to fetch users' }, 500)
   }
 })
@@ -166,7 +166,7 @@ app.get('/api/get-history-500-2n7b4x9k5m1p3v8h6j4w', async (c: Context) => {
 
     return c.json(historyWithJST)
   } catch (error) {
-    console.error(error)
+    Log.error("get-history-500のエラー", error)
     return c.json({ error: 'Failed to fetch users' }, 500)
   }
 })
@@ -203,7 +203,7 @@ app.get('/api/get-history-shadowban-8f4k9p2m7n3x6v1q5w8d', async (c: Context) =>
 
     return c.json(historyWithJST)
   } catch (error) {
-    console.error(error)
+    Log.error("get-history-shadowbanのエラー", error)
     return c.json({ error: 'Failed to fetch users' }, 500)
   }
 })
@@ -240,7 +240,7 @@ app.get('/api/get-history-500-shadowban-8f4k9p2m7n3x6v1q5w8d', async (c: Context
 
     return c.json(historyWithJST)
   } catch (error) {
-    console.error(error)
+    Log.error("get-history-shadowban-500のエラー", error)
     return c.json({ error: 'Failed to fetch users' }, 500)
   }
 })
@@ -255,7 +255,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
     const historyList = await new CheckHistoryService().getHistoryById(sessionId);
     return c.json(historyList)
   } catch (error) {
-    console.error(error)
+    Log.error("get-history-by-session-idのエラー", error)
     return c.json({ error: 'Failed to fetch users' }, 500)
   }
 })
@@ -409,7 +409,7 @@ app.get('/api/check-by-user', async (c: Context) => {
         monitor.endOperation('batchCheckTweets');
         return tweets;
       } catch (error) {
-        console.error('Error checking tweets:', error);
+        Log.error('Error checking tweets:', error);
         return [];
       }
     })() : undefined;
@@ -428,7 +428,7 @@ app.get('/api/check-by-user', async (c: Context) => {
     });
 
   } catch (error) {
-    console.error('Error:', error);
+    Log.error('/api/check-by-userの不明なエラー:', error);
 
     // Discordに通知を送信
     await discordNotifyService.notifyError(
@@ -457,7 +457,7 @@ app.get('/api/searchtimeline', async (c: Context) => {
       searchTimeline
     })
   } catch (error) {
-    console.error('Error:', error)
+    Log.error('searchtimelineのError:', error)
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -493,7 +493,7 @@ app.get('/api/save-auth-token', async (c) => {
       is_updated: isUpdated
     });
   } catch (error) {
-    console.error('Error saving auth token:', error);
+    Log.error('Error saving auth token:', error);
     return c.json({
       error: 'Failed to save auth token',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -518,7 +518,7 @@ app.get('/api/get-auth-tokens', async (c) => {
 
     return c.json(safeTokens);
   } catch (error) {
-    console.error('Error fetching auth tokens:', error);
+    Log.error('Error fetching auth tokens:', error);
     return c.json({
       error: 'Failed to fetch auth tokens',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -542,7 +542,7 @@ app.get('/api/user-by-screen-name', async (c) => {
     return c.json(json);
 
   } catch (error) {
-    console.error('Error:', error);
+    Log.error('/api/user-by-screen-name Error:', error);
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -565,7 +565,7 @@ app.get('/api/user-id', async (c) => {
     return c.json(userId);
 
   } catch (error) {
-    console.error('Error:', error);
+    Log.error('/api/user-id Error:', error);
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -601,7 +601,7 @@ app.get('/api/usertweets', async (c) => {
     return c.json(data);
 
   } catch (error) {
-    console.error('Error:', error);
+    Log.error('/api/usertweets Error:', error);
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -686,7 +686,7 @@ app.get('/api/userreplies', async (c) => {
     return c.json(data);
 
   } catch (error) {
-    console.error('Error:', error);
+    Log.error('/api/userreplies Error:', error);
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -715,7 +715,7 @@ app.get('/api/user-timeline-urls', async (c) => {
     return c.json({ urls });
 
   } catch (error) {
-    console.error('Error:', error);
+    Log.error('/api/user-timeline-urls Error:', error);
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -800,7 +800,7 @@ app.get('/api/tweet-detail', async (c) => {
     return c.json(data);
 
   } catch (error) {
-    console.error('Error:', error);
+    Log.error('/api/tweet-detail Error:', error);
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -826,7 +826,7 @@ app.get('/api/auth-token-info', async (c) => {
       updatedAt: entry.updatedAt
     });
   } catch (error) {
-    console.error('Error fetching auth token info:', error);
+    Log.error('Error fetching auth token info:', error);
     return c.json({
       error: 'Failed to fetch auth token info',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -868,7 +868,7 @@ app.get('/api/testtest', async (c: Context) => {
 });
 
 const port = 3001
-console.log(`Server is running on port ${port}`)
+Log.info(`Server is running on port ${port}`)
 
 serve({
   fetch: app.fetch,

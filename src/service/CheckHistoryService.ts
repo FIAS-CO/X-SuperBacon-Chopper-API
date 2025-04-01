@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { CHECK_STATUS, CheckStatus } from '../types/Types';
+import { Log } from '../util/Log';
 
 const prisma = new PrismaClient();
 
@@ -41,7 +42,7 @@ export class CheckHistoryService {
                 timestamp
             };
         } catch (error) {
-            console.error(`Error to get check history of sessionID ${sessionId}:`, error);
+            Log.error(`Error to get check history of sessionID ${sessionId}:`, error);
             throw error;
         }
     }

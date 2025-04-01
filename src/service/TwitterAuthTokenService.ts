@@ -138,7 +138,7 @@ export class TwitterAuthTokenService {
 
             return deletedToken;
         } catch (error) {
-            Log.error(`トークン削除中にエラーが発生しました: ${error}`);
+            Log.error(`トークン削除中にエラーが発生しました: `, error);
             return null;
         }
     }

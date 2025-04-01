@@ -63,7 +63,7 @@ export async function batchCheckTweets(tweetInfos: TweetInfo[], ip: string, sess
                         isPinned: info.isPinned
                     };
                 } catch (error) {
-                    console.error('Error checking URL:', inputUrl, error);
+                    Log.error('Error checking URL:', inputUrl, error);
                     return {
                         url: inputUrl,
                         code: 500,
@@ -104,7 +104,7 @@ export async function batchCheckTweets(tweetInfos: TweetInfo[], ip: string, sess
             )
         )
     ).catch(error => {
-        console.error('Error creating check histories:', error);
+        Log.error('Error creating check histories:', error);
     });
 
     return results;
@@ -271,7 +271,7 @@ export function extractTweetId(url: string): string {
         const match = url.match(/\/status\/(\d+)/);
         return match ? match[1] : "invalid_id";
     } catch (error) {
-        console.error('Error extracting tweet ID:', error);
+        Log.error('Error extracting tweet ID:', error);
         return "invalid_id";
     }
 }
@@ -522,7 +522,7 @@ function extractTweetInfos(data: any): TweetInfo[] {
 
         return tweetInfos;
     } catch (error) {
-        console.error('Error extracting tweet infos:', error);
+        Log.error('Error extracting tweet infos:', error);
         return [];
     }
 
@@ -544,7 +544,7 @@ function extractPinnedTweetInfos(data: any): TweetInfo[] {
 
         return tweetInfos;
     } catch (error) {
-        console.error('Error extracting tweet infos:', error);
+        Log.error('Error extracting tweet infos:', error);
         return [];
     }
 
@@ -620,7 +620,7 @@ function isQuated(tweetResult: TweetResult | undefined): boolean {
         if (!tweetResult) return false;
         return Boolean(tweetResult?.quoted_status_result?.result);
     } catch (error) {
-        console.error('Error checking quoted status:', error);
+        Log.error('Error checking quoted status:', error);
         return false;
     }
 }
@@ -632,7 +632,7 @@ function isRetweet(tweetResult?: TweetResult): boolean {
     try {
         return Boolean(tweetResult?.legacy?.retweeted_status_result?.result);
     } catch (error) {
-        console.error('Error checking Repost status:', error);
+        Log.error('Error checking Repost status:', error);
         return false;
     }
 }
@@ -646,14 +646,14 @@ export function extractCursor(data: any): string {
         );
 
         if (!targetInstruction) {
-            console.log("No TimelineAddEntries found");
+            Log.info("No TimelineAddEntries found");
             return "";
         }
 
         const timelineAddEntries = targetInstruction.entries || [];
         return timelineAddEntries[timelineAddEntries.length - 1].content.value ?? "";
     } catch (error) {
-        console.error('Error extracting URLs:', error);
+        Log.error('Error extracting URLs:', error);
         return "";
     }
 }

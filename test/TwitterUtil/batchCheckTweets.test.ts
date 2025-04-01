@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as TwitterUtil from '../../src/TwitterUtil/TwitterUtil';
 import { CheckHistoryService } from '../../src/service/CheckHistoryService';
 import { CheckStatus } from '../../src/types/Types';
+import { Log } from '../../src/util/Log';
 
 // CheckHistoryServiceをモック化
 vi.mock('../../src/service/CheckHistoryService', () => {
@@ -71,7 +72,7 @@ describe('batchCheckTweetUrls', () => {
 
     it('should check real tweets correctly', async () => {
         if (!process.env.AUTH_TOKEN) {
-            console.log('Skipping test: AUTH_TOKEN is not set');
+            Log.info('Skipping test: AUTH_TOKEN is not set');
             return;
         }
 
