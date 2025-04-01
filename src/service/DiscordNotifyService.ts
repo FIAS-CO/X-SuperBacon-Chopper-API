@@ -56,7 +56,7 @@ export class DiscordNotifyService {
         const message = `
 🚨 **Error Alert**
 **Context:** ${context}
-**Error:** ${error.message}
+**Error:** ${error.message?.substring(0, 1200) || 'No error message'}
 **Stack:** \`\`\`${error.stack?.slice(0, 200)}...\`\`\`
         `.trim();
 
