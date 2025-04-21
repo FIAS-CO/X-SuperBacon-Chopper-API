@@ -3,8 +3,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Context } from 'hono'
 import {
-  fetchUserByScreenNameAsync, fetchSearchTimelineAsync, fetchSearchSuggestionAsync,
-  batchCheckTweets,
+  fetchUserByScreenNameAsync, fetchSearchTimelineAsync,
   fetchUserTweetsAsync,
   getTimelineTweetInfo,
   batchCheckTweetUrls
@@ -14,11 +13,10 @@ import { expandUrl } from './UrlUtil'
 import { generateRandomHexString } from './FunctionUtil'
 import { serverDecryption } from './util/ServerDecryption'
 import { CheckHistoryService } from './service/CheckHistoryService'
-import { PerformanceMonitor } from './util/PerformanceMonitor'
-import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
 import { authTokenService } from './service/TwitterAuthTokenService'
 import { Log } from './util/Log'
 import { discordNotifyService } from './service/DiscordNotifyService'
+import { ShadowBanCheckController } from './controller/ShadowBanCheckController'
 
 type Bindings = {}
 
@@ -260,188 +258,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
   }
 })
 
-export interface ShadowBanCheckResult {
-  not_found: boolean;
-  suspend: boolean;
-  protect: boolean;
-  no_tweet: boolean;
-  search_ban: boolean;
-  search_suggestion_ban: boolean;
-  no_reply: boolean;
-  ghost_ban: boolean;
-  reply_deboosting: boolean;
-  user: any | null;
-  api_status: {
-    userSearchGroup: {
-      rate_limit: boolean,
-      error: string | undefined
-    },
-    userTimelineGroup: {
-      rate_limit: boolean,
-      error: string | undefined
-    }
-  }
-}
-
-app.get('/api/check-by-user', async (c: Context) => {
-  const monitor = new PerformanceMonitor();
-  let screenName: string | undefined = undefined;
-
-  try {
-    screenName = c.req.query('screen_name');
-    if (!screenName) {
-      return c.json({ error: 'screen_name parameter is required' }, 400);
-    }
-
-    const checkSearchBan = c.req.query('searchban') === 'true';
-    const checkRepost = c.req.query('repost') === 'true';
-
-    const encryptedIp = c.req.query('key');
-    const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
-
-    Log.info(`Check by user start. name:${screenName} searchban:${checkSearchBan} repost:${checkRepost}`)
-
-    var result: ShadowBanCheckResult = {
-      not_found: false,
-      suspend: false,
-      protect: false,
-      no_tweet: false,
-      search_ban: false,
-      search_suggestion_ban: false,
-      no_reply: false,
-      ghost_ban: false,
-      reply_deboosting: false,
-      user: null,
-      api_status: {
-        userSearchGroup: {
-          rate_limit: true,
-          error: undefined as string | undefined
-        },
-        userTimelineGroup: {
-          rate_limit: true,
-          error: undefined as string | undefined
-        }
-      }
-    }
-
-    result.api_status.userSearchGroup.rate_limit = false;
-
-    monitor.startOperation('fetchUser');
-    const user = await fetchUserByScreenNameAsync(screenName);
-    monitor.endOperation('fetchUser');
-
-    const service = new ShadowbanHistoryService();
-    const sessionId = generateRandomHexString(16);
-
-    if (!user) {
-      result.not_found = true;
-      await service.createHistory(screenName, result, sessionId, ip);
-
-      return c.json(result)
-    }
-
-    result.user = user.result;
-
-    if (user.result.__typename !== "User") {
-      result.suspend = true;
-      await service.createHistory(screenName, result, sessionId, ip);
-
-      return c.json(result)
-    }
-
-    if (user.result.legacy.protected === true) {
-      result.protect = true;
-      await service.createHistory(screenName, result, sessionId, ip);
-
-      return c.json(result)
-    }
-
-    const userScreenName = user.result.legacy.screen_name; // 大文字・小文字などの表記を合わせるため取得した値を使用
-
-    monitor.startOperation('fetchSearchTimeline');
-    const searchData = await fetchSearchTimelineAsync(screenName);
-    monitor.endOperation('fetchSearchTimeline');
-
-    const searchTimeline = searchData.data?.search_by_raw_query?.search_timeline;
-
-    let searchBanFlag = true
-    if (searchTimeline?.timeline?.instructions) {
-      for (const instruction of searchTimeline.timeline.instructions) {
-        if (!instruction.entries) continue
-        for (const entry of instruction.entries) {
-          if (entry.entryId.startsWith('tweet-')) {
-            if (entry.content?.itemContent?.tweet_results?.result?.core?.user_results?.result?.legacy?.screen_name === userScreenName) {
-              searchBanFlag = false
-              break
-            }
-          }
-        }
-        if (!searchBanFlag) break
-      }
-    }
-    result.search_ban = searchBanFlag;
-
-    const searchSuggestionBanFlag = searchBanFlag || await (async () => {
-      const userNameText = user.result.legacy.name;
-      monitor.startOperation('fetchSearchSuggestion');
-      const searchSuggestionUsers = await fetchSearchSuggestionAsync(screenName, userNameText);
-      monitor.endOperation('fetchSearchSuggestion');
-      return !searchSuggestionUsers.some(
-        (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === userScreenName
-      );
-    })();
-    result.search_suggestion_ban = searchSuggestionBanFlag;
-
-    result.api_status.userTimelineGroup.rate_limit = false;
-
-    var checkedTweets = checkSearchBan ? await (async () => {
-      try {
-        monitor.startOperation('fetchUserId');
-        const userId = user?.result?.rest_id;
-        monitor.endOperation('fetchUserId');
-
-        monitor.startOperation('fetchTimelineUrls');
-        const tweetInfos = await getTimelineTweetInfo(userId, checkRepost);
-        monitor.endOperation('fetchTimelineUrls');
-
-        monitor.startOperation('batchCheckTweets');
-        const tweets = await batchCheckTweets(tweetInfos, ip, sessionId, true);
-        monitor.endOperation('batchCheckTweets');
-        return tweets;
-      } catch (error) {
-        Log.error('Error checking tweets:', error);
-        return [];
-      }
-    })() : undefined;
-
-    const timings = monitor.getTimings();
-
-    await service.createHistory(screenName, result, sessionId, ip);
-
-    return c.json({
-      ...result,
-      user: user.result,
-      tweets: checkedTweets,
-      _debug: {
-        timings
-      }
-    });
-
-  } catch (error) {
-    Log.error('/api/check-by-userの不明なエラー:', error);
-
-    // Discordに通知を送信
-    await discordNotifyService.notifyError(
-      error instanceof Error ? error : new Error(String(error)),
-      `API: check-by-user (screenName: ${screenName})`
-    );
-
-    return c.json({
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
-  }
-});
+app.get('/api/check-by-user',ShadowBanCheckController.checkByUser);
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {

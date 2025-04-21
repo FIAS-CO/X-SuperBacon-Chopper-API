@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { ShadowBanCheckResult } from '..';
+import { ShadowBanCheckResult } from '../types/ShadowBanCheckResult';
 import { Log } from '../util/Log';
 
 const prisma = new PrismaClient();
