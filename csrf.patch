@@ -1,0 +1,65 @@
+diff --git a/src/index.ts b/src/index.ts
+index 1563451..7ed82a6 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -17,6 +17,7 @@ import { authTokenService } from './service/TwitterAuthTokenService'
+ import { Log } from './util/Log'
+ import { discordNotifyService } from './service/DiscordNotifyService'
+ import { ShadowBanCheckController } from './controller/ShadowBanCheckController'
++import { setCsrf, validateCsrf } from './middleware/csrf'
+ 
+ type Bindings = {}
+ 
+@@ -25,6 +26,9 @@ const app = new Hono<{ Bindings: Bindings }>()
+ // Enable CORS
+ app.use('/*', cors())
+ 
++// CSRFトークンを設定するミドルウェア
++app.use('/api/*', setCsrf);
++
+ // Health check endpoint
+ app.get('/', (c: Context) => c.json({ status: 'ok' }))
+ 
+@@ -258,7 +262,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
+   }
+ })
+ 
+-app.get('/api/check-by-user',ShadowBanCheckController.checkByUser);
++app.get('/api/check-by-user', validateCsrf, ShadowBanCheckController.checkByUser);
+ 
+ app.get('/api/searchtimeline', async (c: Context) => {
+   try {
+diff --git a/src/middleware/csrf.ts b/src/middleware/csrf.ts
+new file mode 100644
+index 0000000..9ea7636
+--- /dev/null
++++ b/src/middleware/csrf.ts
+@@ -0,0 +1,28 @@
++import { MiddlewareHandler } from 'hono';
++import { getCookie, setCookie } from 'hono/cookie';
++import { generateRandomHexString } from '../FunctionUtil'
++
++export const setCsrf: MiddlewareHandler = async (c, next) => {
++    const existingToken = getCookie(c, 'csrf-token');
++    if (!existingToken) {
++        const token = generateRandomHexString(16);
++        setCookie(c, 'csrf-token', token, {
++            httpOnly: true,
++            secure: process.env.NODE_ENV === 'production',
++            sameSite: 'Strict',
++            maxAge: 24 * 60 * 60,
++        });
++    }
++    await next();
++};
++
++export const validateCsrf: MiddlewareHandler = async (c, next) => {
++    const cookieToken = getCookie(c, 'csrf-token');
++    const headerToken = c.req.header('X-CSRF-Token');
++
++    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
++        return c.json({ error: 'CSRF validation failed' }, 403);
++    }
++
++    return await next();
++};

@@ -321,7 +321,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
 export async function fetchSearchTimelineAsync(screenName: string): Promise<any> {
     const authToken = await authTokenService.getRequiredToken();
-    const headers = await createHeader(authToken);
+    const headers = await createHeader2(authToken);
     const searchParams = new URLSearchParams({
         "variables": JSON.stringify({
             "rawQuery": `from:${screenName}`,
@@ -330,9 +330,9 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
             "product": "Top"
         }),
         "features": JSON.stringify({
+            "rweb_video_screen_enabled": false,
             "profile_label_improvements_pcf_label_in_post_enabled": true,
             "rweb_tipjar_consumption_enabled": true,
-            "responsive_web_graphql_exclude_directive_enabled": true,
             "verified_phone_label_enabled": false,
             "creator_subscriptions_tweet_preview_api_enabled": true,
             "responsive_web_graphql_timeline_navigation_enabled": true,
@@ -351,20 +351,21 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
             "longform_notetweets_consumption_enabled": true,
             "responsive_web_twitter_article_tweet_consumption_enabled": true,
             "tweet_awards_web_tipping_enabled": false,
+            "responsive_web_grok_show_grok_translated_post": false,
+            "responsive_web_grok_analysis_button_from_backend": false,
             "creator_subscriptions_quote_tweet_preview_enabled": false,
             "freedom_of_speech_not_reach_fetch_enabled": true,
             "standardized_nudges_misinfo": true,
             "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
-            "rweb_video_timestamps_enabled": true,
             "longform_notetweets_rich_text_read_enabled": true,
             "longform_notetweets_inline_media_enabled": true,
-            "responsive_web_grok_image_annotation_enabled": false,
+            "responsive_web_grok_image_annotation_enabled": true,
             "responsive_web_enhance_cards_enabled": false
         })
     });
 
     const searchResponse = await fetch(
-        `https://x.com/i/api/graphql/1BP5aKg8NvTNvRCyyCyq8g/SearchTimeline?${searchParams}`,
+        `https://x.com/i/api/graphql/AIdc203rPpK_k_2KWSdm7g/SearchTimeline?${searchParams}`,
         { headers }
     );
     authTokenService.updateRateLimit(authToken, searchResponse.headers);
@@ -772,8 +773,116 @@ export async function fetchUserTweetsAsync(authToken: string, userId: string, cu
     return timelineResponse;
 }
 
+export async function fetchSearchTimelineAsyncDirect(screenName: string): Promise<any> {
+    const authToken = await authTokenService.getRequiredToken();
+
+    // 実際のリクエストのCSRFトークンとトランザクションIDを使用
+    const csrfToken = "80b6efb035b175727eb79787588c02000810dea8a5223af6952c3db0a25802ad344a898f7ff6ba0a05a6c876f85b361e114d5e1b4062fe9766623ff5b4f9b3a4f613e250e46530289054f14be83daecc";
+    const transactionId = "usEwuRajrQ8B3tCBwPFhDwg0gl5XA3ulFn4Qwhngofa8/IVPOXMFig6pT/51tmvs66SQBrn8OtnJ6IkbhmSHkVvxamYzuQ";
+
+    // 元のヘッダー情報をそのまま維持
+    const headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
+        "Accept": "*/*",
+        "Accept-Language": "ja,en-US;q=0.7,en;q=0.3",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Referer": `https://x.com/search?q=from:${encodeURIComponent(screenName)}&src=recent_search_click`,
+        "content-type": "application/json",
+        "x-twitter-auth-type": "OAuth2Session",
+        "x-csrf-token": csrfToken,
+        "x-twitter-client-language": "ja",
+        "x-twitter-active-user": "yes",
+        "x-client-transaction-id": transactionId,
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+        "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+        "Cookie": `auth_token=${authToken}; ct0=${csrfToken}`
+    };
+
+    // 検索クエリを準備
+    const searchQuery = `from:${screenName}`;
+
+    const searchParams = new URLSearchParams({
+        "variables": JSON.stringify({
+            "rawQuery": searchQuery,
+            "count": 20,
+            "querySource": "recent_search_click",
+            "product": "Top"
+        }),
+        "features": JSON.stringify({
+            "rweb_video_screen_enabled": false,
+            "profile_label_improvements_pcf_label_in_post_enabled": true,
+            "rweb_tipjar_consumption_enabled": true,
+            "verified_phone_label_enabled": false,
+            "creator_subscriptions_tweet_preview_api_enabled": true,
+            "responsive_web_graphql_timeline_navigation_enabled": true,
+            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
+            "premium_content_api_read_enabled": false,
+            "communities_web_enable_tweet_community_results_fetch": true,
+            "c9s_tweet_anatomy_moderator_badge_enabled": true,
+            "responsive_web_grok_analyze_button_fetch_trends_enabled": false,
+            "responsive_web_grok_analyze_post_followups_enabled": true,
+            "responsive_web_jetfuel_frame": false,
+            "responsive_web_grok_share_attachment_enabled": true,
+            "articles_preview_enabled": true,
+            "responsive_web_edit_tweet_api_enabled": true,
+            "graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+            "view_counts_everywhere_api_enabled": true,
+            "longform_notetweets_consumption_enabled": true,
+            "responsive_web_twitter_article_tweet_consumption_enabled": true,
+            "tweet_awards_web_tipping_enabled": false,
+            "responsive_web_grok_show_grok_translated_post": false,
+            "responsive_web_grok_analysis_button_from_backend": false,
+            "creator_subscriptions_quote_tweet_preview_enabled": false,
+            "freedom_of_speech_not_reach_fetch_enabled": true,
+            "standardized_nudges_misinfo": true,
+            "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
+            "longform_notetweets_rich_text_read_enabled": true,
+            "longform_notetweets_inline_media_enabled": true,
+            "responsive_web_grok_image_annotation_enabled": true,
+            "responsive_web_enhance_cards_enabled": false
+        })
+    });
+
+    // 完全なURL
+    const apiUrl = `https://x.com/i/api/graphql/AIdc203rPpK_k_2KWSdm7g/SearchTimeline?${searchParams}`;
+
+    // デバッグ用にURLとヘッダーをログ出力
+    Log.debug("API URL:", apiUrl);
+    Log.debug("API Headers:", JSON.stringify(headers, null, 2));
+
+    const searchResponse = await fetch(apiUrl, {
+        headers,
+        method: 'GET',
+        credentials: 'include'  // Cookieを含める
+    });
+
+    authTokenService.updateRateLimit(authToken, searchResponse.headers);
+
+    if (!searchResponse.ok) {
+        const errorText = await searchResponse.text();
+        Log.error(`SearchTimeline API Error (Status ${searchResponse.status}):`, errorText);
+        throw new Error(`SearchTimeline API returned status: ${searchResponse.status}, Error: ${errorText}`);
+    }
+
+    const searchData = await searchResponse.json();
+    return searchData;
+}
+
 async function createHeader(authToken: string) {
     const csrfToken = generateRandomHexString(16);
+
+    return {
+        Authorization:
+            "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+        Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
+        "X-Csrf-Token": csrfToken,
+    };
+}
+
+async function createHeader2(authToken: string) {
+    const csrfToken = generateRandomHexString(80);
 
     return {
         Authorization:

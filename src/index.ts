@@ -6,7 +6,8 @@ import {
   fetchUserByScreenNameAsync, fetchSearchTimelineAsync,
   fetchUserTweetsAsync,
   getTimelineTweetInfo,
-  batchCheckTweetUrls
+  batchCheckTweetUrls,
+  fetchSearchTimelineAsyncDirect
 } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
@@ -17,6 +18,7 @@ import { authTokenService } from './service/TwitterAuthTokenService'
 import { Log } from './util/Log'
 import { discordNotifyService } from './service/DiscordNotifyService'
 import { ShadowBanCheckController } from './controller/ShadowBanCheckController'
+import { setCsrf, validateCsrf } from './middleware/csrf'
 
 type Bindings = {}
 
@@ -24,6 +26,9 @@ const app = new Hono<{ Bindings: Bindings }>()
 
 // Enable CORS
 app.use('/*', cors())
+
+// CSRFトークンを設定するミドルウェア
+app.use('/api/*', setCsrf);
 
 // Health check endpoint
 app.get('/', (c: Context) => c.json({ status: 'ok' }))
@@ -258,7 +263,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
   }
 })
 
-app.get('/api/check-by-user',ShadowBanCheckController.checkByUser);
+app.get('/api/check-by-user', validateCsrf, ShadowBanCheckController.checkByUser);
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
@@ -268,7 +273,7 @@ app.get('/api/searchtimeline', async (c: Context) => {
       return c.json({ error: 'screen_name parameter is required' }, 400);
     }
 
-    const searchData = await fetchSearchTimelineAsync(screenName)
+    const searchData = await fetchSearchTimelineAsyncDirect(screenName)
     const searchTimeline = searchData.data?.search_by_raw_query?.search_timeline;
     return c.json({
       searchTimeline
