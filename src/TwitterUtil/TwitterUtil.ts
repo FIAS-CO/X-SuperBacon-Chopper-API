@@ -773,41 +773,41 @@ export async function fetchUserTweetsAsync(authToken: string, userId: string, cu
     return timelineResponse;
 }
 
-export async function fetchSearchTimelineAsyncDirect(screenName: string): Promise<any> {
-    const authToken = await authTokenService.getRequiredToken();
+export async function fetchSearchTimelineAsyncDirect(): Promise<any> {
 
-    // 実際のリクエストのCSRFトークンとトランザクションIDを使用
-    const csrfToken = "80b6efb035b175727eb79787588c02000810dea8a5223af6952c3db0a25802ad344a898f7ff6ba0a05a6c876f85b361e114d5e1b4062fe9766623ff5b4f9b3a4f613e250e46530289054f14be83daecc";
-    const transactionId = "usEwuRajrQ8B3tCBwPFhDwg0gl5XA3ulFn4Qwhngofa8/IVPOXMFig6pT/51tmvs66SQBrn8OtnJ6IkbhmSHkVvxamYzuQ";
-
-    // 元のヘッダー情報をそのまま維持
+    // リクエストヘッダーの情報をそのまま使用
     const headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
         "Accept": "*/*",
         "Accept-Language": "ja,en-US;q=0.7,en;q=0.3",
         "Accept-Encoding": "gzip, deflate, br, zstd",
-        "Referer": `https://x.com/search?q=from:${encodeURIComponent(screenName)}&src=recent_search_click`,
+        "Referer": "https://x.com/search?q=Switch2&src=typed_query",  // Refererも修正
         "content-type": "application/json",
+        "X-Client-UUID": "645d568b-11a1-450f-adf8-8bc78746189f",
         "x-twitter-auth-type": "OAuth2Session",
-        "x-csrf-token": csrfToken,
+        "x-csrf-token": "9a3d9e1f470ea3471f229c4b456ae70cb3760a9170cf9ae564b5a3069bb724be9ce9e7f760812e4599f2ff68597b6ba5fb9ccccadc9bb7665caf465912e87b8dc11c18c8d6002c4c1a546449f8012f47",
         "x-twitter-client-language": "ja",
         "x-twitter-active-user": "yes",
-        "x-client-transaction-id": transactionId,
+        "x-client-transaction-id": "TdcJBKjbtmAHn4yeFqDtU7EWePRCNV6YP89cqOKMpNDzHloqC7ktYP1GYs7OUo9SRvNICbbJtWZ887mJkYte1Fdw94JTtg",
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "same-origin",
         "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-        "Cookie": `auth_token=${authToken}; ct0=${csrfToken}`
+        "Cookie": `auth_multi="96920456:46fc394e6a8d99edb33e9ccc8b512b884c33a892|95591508:c499c1cc7c2d0c2c974c9929ecc5d77ec734442f|1896511049471594496:ea491b5d5ed169cd7ad46a5b5b70b91d954ecbd7"; auth_token=2c891c5bf2163586aaaa375fca3da53d557f466a; ct0=9a3d9e1f470ea3471f229c4b456ae70cb3760a9170cf9ae564b5a3069bb724be9ce9e7f760812e4599f2ff68597b6ba5fb9ccccadc9bb7665caf465912e87b8dc11c18c8d6002c4c1a546449f8012f47`,
+        "Pragma": "no-cache",
+        "Cache-Control": "no-cache",
+        "TE": "trailers"
     };
 
-    // 検索クエリを準備
-    const searchQuery = `from:${screenName}`;
-
+    // 検索クエリを「Switch2」に固定
+    const searchQuery = "Switch2";
+    const encodedSearchQuery = encodeURIComponent(searchQuery);
+    // パラメータを構造化
     const searchParams = new URLSearchParams({
         "variables": JSON.stringify({
             "rawQuery": searchQuery,
             "count": 20,
-            "querySource": "recent_search_click",
+            "querySource": "typed_query",
             "product": "Top"
         }),
         "features": JSON.stringify({
@@ -845,7 +845,7 @@ export async function fetchSearchTimelineAsyncDirect(screenName: string): Promis
         })
     });
 
-    // 完全なURL
+    // 完全なURLを構築
     const apiUrl = `https://x.com/i/api/graphql/AIdc203rPpK_k_2KWSdm7g/SearchTimeline?${searchParams}`;
 
     // デバッグ用にURLとヘッダーをログ出力
@@ -858,12 +858,9 @@ export async function fetchSearchTimelineAsyncDirect(screenName: string): Promis
         credentials: 'include'  // Cookieを含める
     });
 
-    authTokenService.updateRateLimit(authToken, searchResponse.headers);
 
     if (!searchResponse.ok) {
-        const errorText = await searchResponse.text();
-        Log.error(`SearchTimeline API Error (Status ${searchResponse.status}):`, errorText);
-        throw new Error(`SearchTimeline API returned status: ${searchResponse.status}, Error: ${errorText}`);
+        return await handleTwitterApiError(searchResponse, "", 'SearchTimeline');
     }
 
     const searchData = await searchResponse.json();
@@ -902,6 +899,8 @@ async function createHeader2(authToken: string) {
 async function handleTwitterApiError(response: Response, authToken: string, contextName: string): Promise<never> {
     const errorText = await response.text();
     Log.error(`${contextName} API Error:`, errorText);
+
+    Log.error(`SearchTimeline API Error (Status ${response.status}):`, errorText);
 
     if (response.status === 429) {
         // レート制限エラー

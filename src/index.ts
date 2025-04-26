@@ -273,7 +273,7 @@ app.get('/api/searchtimeline', async (c: Context) => {
       return c.json({ error: 'screen_name parameter is required' }, 400);
     }
 
-    const searchData = await fetchSearchTimelineAsyncDirect(screenName)
+    const searchData = await fetchSearchTimelineAsyncDirect()
     const searchTimeline = searchData.data?.search_by_raw_query?.search_timeline;
     return c.json({
       searchTimeline
