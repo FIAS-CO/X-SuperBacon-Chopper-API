@@ -321,18 +321,21 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
 export async function fetchSearchTimelineAsync(screenName: string): Promise<any> {
     const authToken = await authTokenService.getRequiredToken();
-    const headers = await createHeader(authToken);
+    const searchQuery = `from:${screenName}`;
+    const transactionId = await getTransactionIdAsync("GET", "/i/api/graphql/AIdc203rPpK_k_2KWSdm7g/SearchTimeline");
+    const referer = `https://x.com/search?q=${searchQuery}&src=typed_query`;
+    const headers = await createHeader2(authToken, referer, transactionId);
     const searchParams = new URLSearchParams({
         "variables": JSON.stringify({
-            "rawQuery": `from:${screenName}`,
+            "rawQuery": searchQuery,
             "count": 20,
-            "querySource": "recent_search_click",
+            "querySource": "typed_query",
             "product": "Top"
         }),
         "features": JSON.stringify({
+            "rweb_video_screen_enabled": false,
             "profile_label_improvements_pcf_label_in_post_enabled": true,
             "rweb_tipjar_consumption_enabled": true,
-            "responsive_web_graphql_exclude_directive_enabled": true,
             "verified_phone_label_enabled": false,
             "creator_subscriptions_tweet_preview_api_enabled": true,
             "responsive_web_graphql_timeline_navigation_enabled": true,
@@ -351,22 +354,21 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
             "longform_notetweets_consumption_enabled": true,
             "responsive_web_twitter_article_tweet_consumption_enabled": true,
             "tweet_awards_web_tipping_enabled": false,
+            "responsive_web_grok_show_grok_translated_post": false,
+            "responsive_web_grok_analysis_button_from_backend": false,
             "creator_subscriptions_quote_tweet_preview_enabled": false,
             "freedom_of_speech_not_reach_fetch_enabled": true,
             "standardized_nudges_misinfo": true,
             "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
-            "rweb_video_timestamps_enabled": true,
             "longform_notetweets_rich_text_read_enabled": true,
             "longform_notetweets_inline_media_enabled": true,
-            "responsive_web_grok_image_annotation_enabled": false,
+            "responsive_web_grok_image_annotation_enabled": true,
             "responsive_web_enhance_cards_enabled": false
         })
     });
 
-    const searchResponse = await fetch(
-        `https://x.com/i/api/graphql/1BP5aKg8NvTNvRCyyCyq8g/SearchTimeline?${searchParams}`,
-        { headers }
-    );
+    const apiUrl = `https://x.com/i/api/graphql/AIdc203rPpK_k_2KWSdm7g/SearchTimeline?${searchParams}`;
+    const searchResponse = await fetch(apiUrl, { headers });
     authTokenService.updateRateLimit(authToken, searchResponse.headers);
 
     if (!searchResponse.ok) {
@@ -783,6 +785,33 @@ async function createHeader(authToken: string) {
     };
 }
 
+async function createHeader2(authToken: string, referer: string, transactionId: string): Promise<any> {
+    const csrfToken = "0899ed8046b8cb58c67f97bad64dac8a720c1d0db66a59018298b6d7da8bde57c8664e716c3e67e35ac0b2a56ad6d91b95391e19d06d392e42a97a9d2e2b6901885f9599a4a767a5b7d3e880e2d6cf2c";
+
+    const headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Language": "ja,en-US;q=0.7,en;q=0.3",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Referer": referer,
+        "content-type": "application/json",
+        "x-twitter-auth-type": "OAuth2Session",
+        "x-csrf-token": csrfToken,
+        "x-twitter-client-language": "ja",
+        "x-twitter-active-user": "yes",
+        "x-client-transaction-id": transactionId,
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+        "authorization": "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+        "Cookie": `auth_token=${authToken}; ct0=${csrfToken}`,
+        "Pragma": "no-cache",
+        "Cache-Control": "no-cache",
+        "TE": "trailers"
+    };
+    return headers;
+}
+
 /**
  * Twitter APIからのエラーレスポンスを処理する
  * @param response エラーとなったレスポンス
@@ -812,4 +841,38 @@ async function handleTwitterApiError(response: Response, authToken: string, cont
     }
 
     throw new Error(`${contextName} API returned status: ${response.status}, Error: ${errorText}`);
+}
+
+/**
+ * トランザクションID取得APIを事前に起動しないと動きません
+ * @param method 
+ * @param path 
+ * @returns 
+ */
+async function getTransactionIdAsync(method: string, path: string): Promise<string> {
+    try {
+        const requestOptions = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                "method": method,
+                "path": path
+            })
+        };
+
+        const response = await fetch('http://127.0.0.1:3002/transaction', requestOptions);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        return data.transactionId;
+    } catch (error) {
+        console.error('トランザクションIDの取得中にエラーが発生しました:', error);
+        throw error;
+    }
 }
