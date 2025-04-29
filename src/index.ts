@@ -368,6 +368,27 @@ app.get('/api/user-by-screen-name', async (c) => {
   }
 });
 
+app.get('/api/search-suggestion', async (c) => {
+  try {
+    const screenName = c.req.query('screen_name');
+
+    if (!screenName) {
+      return c.json({ error: 'screen_name parameter is required' }, 400);
+    }
+
+    const json = await fetchSearchSuggestionAsync(screenName, "");
+
+    return c.json(json);
+
+  } catch (error) {
+    Log.error('/api/user-by-screen-name Error:', error);
+    return c.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
 app.get('/api/user-id', async (c) => {
   try {
     const screenName = c.req.query('screen_name');
