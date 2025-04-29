@@ -6,7 +6,8 @@ import {
   fetchUserByScreenNameAsync, fetchSearchTimelineAsync,
   fetchUserTweetsAsync,
   getTimelineTweetInfo,
-  batchCheckTweetUrls
+  batchCheckTweetUrls,
+  fetchSearchSuggestionAsync
 } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'

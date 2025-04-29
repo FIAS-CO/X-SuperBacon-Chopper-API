@@ -278,33 +278,35 @@ export function extractTweetId(url: string): string {
 
 export async function fetchUserByScreenNameAsync(screenName: string): Promise<any> {
     const authToken = await authTokenService.getRequiredToken();
-    const headers = await createHeader(authToken);
+    const transactionId = await getTransactionIdAsync("GET", "/i/api/graphql/1VOOyvKkiI3FMmkeDNxM9A/UserByScreenName");
+    const referer = `https://x.com/${screenName}`;
+    const headers = await createHeader2(authToken, referer, transactionId);
 
     const userParams = new URLSearchParams({
         "variables": JSON.stringify({
-            "screen_name": screenName,
-            "withSafetyModeUserFields": true,
+            "screen_name": screenName
         }),
         "features": JSON.stringify({
-            "hidden_profile_likes_enabled": true,
             "hidden_profile_subscriptions_enabled": true,
-            "responsive_web_graphql_exclude_directive_enabled": true,
+            "profile_label_improvements_pcf_label_in_post_enabled": true,
+            "rweb_tipjar_consumption_enabled": true,
             "verified_phone_label_enabled": false,
             "subscriptions_verification_info_is_identity_verified_enabled": true,
             "subscriptions_verification_info_verified_since_enabled": true,
             "highlights_tweets_tab_ui_enabled": true,
             "responsive_web_twitter_article_notes_tab_enabled": true,
+            "subscriptions_feature_can_gift_premium": true,
             "creator_subscriptions_tweet_preview_api_enabled": true,
             "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
-            "responsive_web_graphql_timeline_navigation_enabled": true,
+            "responsive_web_graphql_timeline_navigation_enabled": true
         }),
         "fieldToggles": JSON.stringify({
-            "withAuxiliaryUserLabels": false,
-        }),
+            "withAuxiliaryUserLabels": true
+        })
     });
 
     const userResponse = await fetch(
-        `https://api.twitter.com/graphql/k5XapwcSikNsEsILW5FvgA/UserByScreenName?${userParams}`,
+        `https://x.com/i/api/graphql/1VOOyvKkiI3FMmkeDNxM9A/UserByScreenName?${userParams}`,
         { headers }
     );
     authTokenService.updateRateLimit(authToken, userResponse.headers);
