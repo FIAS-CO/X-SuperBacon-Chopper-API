@@ -15,6 +15,7 @@ interface CheckResult {
     tweetDate: string;
     isPinned: boolean;
 }
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";
 
 export async function batchCheckTweetUrls(urls: string[], ip: string, sessionId: string, withShadowBanCheck: boolean = false): Promise<CheckResult[]> {
     const tweetInfos: TweetInfo[] = urls.map(url =>
@@ -278,7 +279,8 @@ export function extractTweetId(url: string): string {
 
 export async function fetchUserByScreenNameAsync(screenName: string): Promise<any> {
     const authToken = await authTokenService.getRequiredToken();
-    const transactionId = await getTransactionIdAsync("GET", "/i/api/graphql/1VOOyvKkiI3FMmkeDNxM9A/UserByScreenName");
+    const endpoint = "/i/api/graphql/1VOOyvKkiI3FMmkeDNxM9A/UserByScreenName";
+    const transactionId = await getTransactionIdAsync("GET", endpoint);
     const referer = `https://x.com/${screenName}`;
     const headers = await createHeader2(authToken, referer, transactionId);
 
@@ -306,7 +308,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
     });
 
     const userResponse = await fetch(
-        `https://x.com/i/api/graphql/1VOOyvKkiI3FMmkeDNxM9A/UserByScreenName?${userParams}`,
+        `https://x.com${endpoint}?${userParams}`,
         { headers }
     );
     authTokenService.updateRateLimit(authToken, userResponse.headers);
@@ -791,7 +793,7 @@ async function createHeader2(authToken: string, referer: string, transactionId: 
     const csrfToken = "0899ed8046b8cb58c67f97bad64dac8a720c1d0db66a59018298b6d7da8bde57c8664e716c3e67e35ac0b2a56ad6d91b95391e19d06d392e42a97a9d2e2b6901885f9599a4a767a5b7d3e880e2d6cf2c";
 
     const headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+        "User-Agent": USER_AGENT,
         "Accept": "*/*",
         "Accept-Language": "ja,en-US;q=0.7,en;q=0.3",
         "Accept-Encoding": "gzip, deflate, br, zstd",
