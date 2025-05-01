@@ -291,7 +291,7 @@ app.get('/api/save-auth-token', async (c) => {
     const accountId = c.req.query('account_id');
 
     if (!newToken || !newCsrfToken || !accountId) {
-      return c.json({ error: 'token parameters (token, csrf_token, account_id) are required' }, 400);
+      return c.json({ error: 'token parameters (token, ct0, account_id) are required' }, 400);
     }
 
     // まず既存のトークンを取得
