@@ -1,4 +1,5 @@
 import prisma from "../db";
+import { AuthTokenSet } from "../types/Types";
 import { DateUtil } from "../util/DateUtil";
 import { Log } from "../util/Log";
 import { discordNotifyService } from "./DiscordNotifyService";
@@ -9,17 +10,19 @@ export class TwitterAuthTokenService {
      * @param token 保存するトークン
      * @returns 保存されたトークンのエントリ
      */
-    async saveToken(token: string, accountId: string) {
+    async saveToken(token: string, csrfToken: string, accountId: string) {
         return await prisma.authToken.upsert({
             where: {
                 accountId: accountId
             },
             update: {
                 token: token,
+                csrf_token: csrfToken,
                 updatedAt: new Date()
             },
             create: {
                 token: token,
+                csrf_token: csrfToken,
                 accountId: accountId,
                 lastUsed: new Date("2000-01-01T00:00:00Z"),
                 resetTime: new Date(),
@@ -31,7 +34,7 @@ export class TwitterAuthTokenService {
     /**
      * 現在のトークンを取得し、存在しない場合はエラーをスロー
      */
-    async getRequiredToken(): Promise<string> {
+    async getRequiredTokenSet(): Promise<AuthTokenSet> {
         const now = new Date();
 
         /**
@@ -71,7 +74,10 @@ export class TwitterAuthTokenService {
             data: { lastUsed: now }
         });
 
-        return selectedToken.token;
+        return {
+            token: selectedToken.token,
+            csrfToken: selectedToken.csrf_token
+        };
     }
 
     // レスポンスヘッダーからレート制限情報を更新   
@@ -214,6 +220,7 @@ export class TwitterAuthTokenService {
                 id: token.id,
                 accountId: token.accountId,
                 token: token.token,
+                csrfToken: token.csrf_token,
                 lastUsed: lastUsedJST,
                 resetTime: resetTimeJST,
                 updatedAt: updatedAtJST,
@@ -228,16 +235,23 @@ export class TwitterAuthTokenService {
     /**
      * 指定したアカウントIDのトークンを取得
      * @param accountId アカウントID
-     * @returns トークン。存在しない場合はnull
+     * @returns トークンセット。存在しない場合はnull
      */
-    async getTokenByAccountId(accountId: string): Promise<string | null> {
+    async getTokenByAccountId(accountId: string): Promise<AuthTokenSet | null> {
         const entry = await prisma.authToken.findUnique({
             where: {
                 accountId: accountId
             }
         });
 
-        return entry?.token ?? null;
+        if (!entry) {
+            return null;
+        }
+
+        return {
+            token: entry.token,
+            csrfToken: entry.csrf_token
+        };
     }
 
     /**

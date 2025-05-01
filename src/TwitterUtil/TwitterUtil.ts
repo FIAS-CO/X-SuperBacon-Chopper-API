@@ -1,7 +1,6 @@
 import { StatusCode } from "hono/utils/http-status";
 import { expandUrl } from "../UrlUtil";
-import { generateRandomHexString } from "../FunctionUtil";
-import { CheckStatus } from "../types/Types";
+import { AuthTokenSet, CheckStatus } from "../types/Types";
 import { CheckHistoryService } from "../service/CheckHistoryService";
 import { authTokenService } from "../service/TwitterAuthTokenService";
 import { Log } from "../util/Log";
@@ -278,11 +277,11 @@ export function extractTweetId(url: string): string {
 }
 
 export async function fetchUserByScreenNameAsync(screenName: string): Promise<any> {
-    const authToken = await authTokenService.getRequiredToken();
+    const authTokenSet = await authTokenService.getRequiredTokenSet();
     const endpoint = "/i/api/graphql/1VOOyvKkiI3FMmkeDNxM9A/UserByScreenName";
     const transactionId = await getTransactionIdAsync("GET", endpoint);
     const referer = `https://x.com/${screenName}`;
-    const headers = await createHeader2(authToken, referer, transactionId);
+    const headers = await createHeaderWithTransactionId(authTokenSet, referer, transactionId);
 
     const userParams = new URLSearchParams({
         "variables": JSON.stringify({
@@ -311,10 +310,10 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
         `https://x.com${endpoint}?${userParams}`,
         { headers }
     );
-    authTokenService.updateRateLimit(authToken, userResponse.headers);
+    authTokenService.updateRateLimit(authTokenSet.token, userResponse.headers);
 
     if (!userResponse.ok) {
-        return await handleTwitterApiError(userResponse, authToken, 'UserByScreenName');
+        return await handleTwitterApiError(userResponse, authTokenSet.token, 'UserByScreenName');
     }
 
     const { data: { user } } = await userResponse.json()
@@ -325,11 +324,11 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
 export async function fetchSearchTimelineAsync(screenName: string): Promise<any> {
     const tryFetch = async (retryCount = 0): Promise<any> => {
-        const authToken = await authTokenService.getRequiredToken();
+        const authTokenSet = await authTokenService.getRequiredTokenSet();
         const searchQuery = `from:${screenName}`;
         const transactionId = await getTransactionIdAsync("GET", "/i/api/graphql/AIdc203rPpK_k_2KWSdm7g/SearchTimeline");
         const referer = `https://x.com/search?q=${searchQuery}&src=typed_query`;
-        const headers = await createHeader2(authToken, referer, transactionId);
+        const headers = await createHeaderWithTransactionId(authTokenSet, referer, transactionId);
         const searchParams = new URLSearchParams({
             "variables": JSON.stringify({
                 "rawQuery": searchQuery,
@@ -375,7 +374,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         const apiUrl = `https://x.com/i/api/graphql/AIdc203rPpK_k_2KWSdm7g/SearchTimeline?${searchParams}`;
         const response = await fetch(apiUrl, { headers });
 
-        authTokenService.updateRateLimit(authToken, response.headers);
+        authTokenService.updateRateLimit(authTokenSet.token, response.headers);
 
         if (response.status === 404 && retryCount < 1) {
             console.warn("404 received, retrying once...");
@@ -383,7 +382,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         }
 
         if (!response.ok) {
-            return await handleTwitterApiError(response, authToken, 'SearchTimeline');
+            return await handleTwitterApiError(response, authTokenSet.token, 'SearchTimeline');
         }
 
         return await response.json();
@@ -392,10 +391,11 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
     return tryFetch();
 }
 
+// TODO: userNameTextは使っていないので、消す
 export async function fetchSearchSuggestionAsync(screenName: string, userNameText: string): Promise<any> {
 
-    const authToken = await authTokenService.getRequiredToken();
-    const headers = await createHeader(authToken);
+    const authTokenSet = await authTokenService.getRequiredTokenSet();
+    const headers = await createHeader(authTokenSet);
 
     const suggestionParams = new URLSearchParams({
         "include_ext_is_blue_verified": "1",
@@ -684,8 +684,8 @@ export async function getTimelineUrls(userId: string, containRepost: boolean): P
 
 export async function getTimelineTweetInfo(userId: string, containRepost: boolean): Promise<TweetInfo[]> {
     const DESIRED_COUNT = 20;
-    const authToken = await authTokenService.getRequiredToken();
-    if (!authToken) {
+    const authTokenSet = await authTokenService.getRequiredTokenSet();
+    if (!authTokenSet) {
         throw new Error("AUTH_TOKEN is not defined");
     }
 
@@ -695,9 +695,9 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
     var isFirstTime = true;
     while (allTweetInfos.length < DESIRED_COUNT) {
         // API呼び出し
-        const response = await fetchUserTweetsAsync(authToken, userId, cursor);
+        const response = await fetchUserTweetsAsync(authTokenSet, userId, cursor);
         if (!response.ok) {
-            return await handleTwitterApiError(response, authToken, 'UserTweets');
+            return await handleTwitterApiError(response, authTokenSet.token, 'UserTweets');
         }
 
         const data = await response.json();
@@ -726,9 +726,9 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
     return allTweetInfos.slice(0, DESIRED_COUNT);
 }
 
-export async function fetchUserTweetsAsync(authToken: string, userId: string, cursor: string = ""): Promise<Response> {
-    // CSRFトークンの生成
-    const csrfToken = generateRandomHexString(16);
+export async function fetchUserTweetsAsync(authTokenSet: AuthTokenSet, userId: string, cursor: string = ""): Promise<Response> {
+    const authToken = authTokenSet.token;
+    const csrfToken = authTokenSet.csrfToken;
 
     const headers = {
         Authorization: "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
@@ -786,19 +786,18 @@ export async function fetchUserTweetsAsync(authToken: string, userId: string, cu
     return timelineResponse;
 }
 
-async function createHeader(authToken: string) {
-    const csrfToken = generateRandomHexString(16);
-
+async function createHeader(authTokenSet: AuthTokenSet) {
     return {
         Authorization:
             "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-        Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
-        "X-Csrf-Token": csrfToken,
+        Cookie: `auth_token=${authTokenSet.token}; ct0=${authTokenSet.csrfToken}`,
+        "X-Csrf-Token": authTokenSet.csrfToken,
     };
 }
 
-async function createHeader2(authToken: string, referer: string, transactionId: string): Promise<any> {
-    const csrfToken = "0899ed8046b8cb58c67f97bad64dac8a720c1d0db66a59018298b6d7da8bde57c8664e716c3e67e35ac0b2a56ad6d91b95391e19d06d392e42a97a9d2e2b6901885f9599a4a767a5b7d3e880e2d6cf2c";
+async function createHeaderWithTransactionId(authTokenSet: AuthTokenSet, referer: string, transactionId: string): Promise<any> {
+    const authToken = authTokenSet.token;
+    const csrfToken = authTokenSet.csrfToken;
 
     const headers = {
         "User-Agent": USER_AGENT,
