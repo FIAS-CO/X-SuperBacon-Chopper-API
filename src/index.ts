@@ -287,27 +287,38 @@ app.get('/api/searchtimeline', async (c: Context) => {
 app.get('/api/save-auth-token', async (c) => {
   try {
     const newToken = c.req.query('token');
+    const newCsrfToken = c.req.query('ct0');
     const accountId = c.req.query('account_id');
 
-    if (!newToken || !accountId) {
-      return c.json({ error: 'token parameter(token, account_id) is required' }, 400);
+    if (!newToken || !newCsrfToken || !accountId) {
+      return c.json({ error: 'token parameters (token, csrf_token, account_id) are required' }, 400);
     }
 
     // まず既存のトークンを取得
-    const currentToken = await authTokenService.getTokenByAccountId(accountId) ?? "NO_DATA";
+    const currentTokenSet = await authTokenService.getTokenByAccountId(accountId);
+    const currentToken = currentTokenSet?.token ?? "NO_DATA";
+    const currentCsrfToken = currentTokenSet?.csrfToken ?? "NO_DATA";
 
     // 既存のトークンと新しいトークンが異なる場合のみ更新
     if (!currentToken || currentToken !== newToken) {
-      await authTokenService.saveToken(newToken, accountId);
+      await authTokenService.saveToken(newToken, newCsrfToken, accountId);
     }
 
     const isUpdated = currentToken !== newToken;
-    discordNotifyService.notifyAuthTokenRefresh(accountId, currentToken, newToken, isUpdated);
-
+    discordNotifyService.notifyAuthTokenRefresh(
+      accountId,
+      currentToken,
+      newToken,
+      currentCsrfToken,
+      newCsrfToken,
+      isUpdated
+    );
     return c.json({
       account: accountId,
-      old_token: currentToken,
+      old_token: currentTokenSet,
       new_token: newToken,
+      old_csrf_token: currentCsrfToken,
+      csrf_token: newCsrfToken,
       is_updated: isUpdated
     });
   } catch (error) {
@@ -414,8 +425,8 @@ app.get('/api/user-id', async (c) => {
 
 app.get('/api/usertweets', async (c) => {
   try {
-    const authToken = await authTokenService.getRequiredToken();
-    if (!authToken) {
+    const authTokenSet = await authTokenService.getRequiredTokenSet();
+    if (!authTokenSet) {
       throw new Error("AUTH_TOKEN is not defined");
     }
 
@@ -430,7 +441,7 @@ app.get('/api/usertweets', async (c) => {
       return c.json({ error: 'user_id parameter is required' }, 400);
     }
 
-    const response = await fetchUserTweetsAsync(authToken, userId);
+    const response = await fetchUserTweetsAsync(authTokenSet, userId);
 
     if (!response.ok) {
       throw new Error(`Twitter API returned status: ${response.status}`);
@@ -450,11 +461,12 @@ app.get('/api/usertweets', async (c) => {
 
 app.get('/api/userreplies', async (c) => {
   try {
-    const authToken = await authTokenService.getRequiredToken();
-    if (!authToken) {
+    const authTokenSet = await authTokenService.getRequiredTokenSet();
+    if (!authTokenSet) {
       throw new Error("AUTH_TOKEN is not defined");
     }
-    const csrfToken = generateRandomHexString(16);
+    const authToken = authTokenSet.token;
+    const csrfToken = authTokenSet.csrfToken;
     const userId = c.req.query('user_id');
     if (!userId) {
       return c.json({ error: 'user_id parameter is required' }, 400);
@@ -564,8 +576,8 @@ app.get('/api/user-timeline-urls', async (c) => {
 
 app.get('/api/tweet-detail', async (c) => {
   try {
-    const authToken = await authTokenService.getRequiredToken();
-    if (!authToken) {
+    const authTokenSet = await authTokenService.getRequiredTokenSet();
+    if (!authTokenSet) {
       throw new Error("AUTH_TOKEN is not defined");
     }
 
@@ -574,7 +586,8 @@ app.get('/api/tweet-detail', async (c) => {
       return c.json({ error: 'tweet_id parameter is required' }, 400);
     }
 
-    const csrfToken = generateRandomHexString(16);
+    const authToken = authTokenSet.token;
+    const csrfToken = authTokenSet.csrfToken;
 
     const searchParams = new URLSearchParams({
       "variables": JSON.stringify({

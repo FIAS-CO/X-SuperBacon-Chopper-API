@@ -76,17 +76,21 @@ export class DiscordNotifyService {
     }
 
     // auth token切り替え通知用のメソッド
-    async notifyAuthTokenRefresh(accountId: string, oldToken: string, newToken: string, isSuccess: boolean): Promise<void> {
+    async notifyAuthTokenRefresh(accountId: string, oldToken: string, newToken: string, oldCsrfToken: string, newCsrfToken: string, isSuccess: boolean): Promise<void> {
         const status = isSuccess ? "✅ Success" : "❌ Failed";
         const truncatedOldToken = oldToken ? `${oldToken.slice(0, 10)}...` : "None";
         const truncatedNewToken = newToken ? `${newToken.slice(0, 10)}...` : "None";
+        const truncatedOldCsrfToken = oldCsrfToken ? `${oldCsrfToken.slice(0, 10)}...` : "None";
+        const truncatedNewCsrfToken = newCsrfToken ? `${newCsrfToken.slice(0, 10)}...` : "None";
 
         const message = `
-🔄 **Auth Token Refresh**
-**Status:** ${status}
-**Account:** ${accountId}
-**Old Token:** \`${truncatedOldToken}\`
-**New Token:** \`${truncatedNewToken}\`
+    🔄 **Auth Token Refresh**
+    **Status:** ${status}
+    **Account:** ${accountId}
+    **Old Token:** \`${truncatedOldToken}\`
+    **New Token:** \`${truncatedNewToken}\`
+    **Old CSRF Token:** \`${truncatedOldCsrfToken}\`
+    **New CSRF Token:** \`${truncatedNewCsrfToken}\`
         `.trim();
 
         await this.sendMessage(message);
