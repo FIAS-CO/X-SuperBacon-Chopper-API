@@ -21,6 +21,11 @@ export class ShadowBanCheckController {
             const encryptedIp = c.req.query('key');
             const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
 
+            // IP形式の検証
+            if (!ShadowBanCheckController.isValidIpFormat(ip)) {
+                return c.json({ error: 'Validation failed.' }, 403);
+            }
+
             // サービスに処理を委譲
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
@@ -47,4 +52,13 @@ export class ShadowBanCheckController {
             }, 500);
         }
     }
+
+    static isValidIpFormat(ip: string): boolean {
+        if (!ip) return false;
+
+        // .で分割して要素が4つあるか確認
+        const parts = ip.split('.');
+        return parts.length === 4;
+    }
+
 }
