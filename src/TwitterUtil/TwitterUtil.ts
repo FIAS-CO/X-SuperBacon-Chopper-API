@@ -883,7 +883,6 @@ export async function getTransactionIdAsync(method: string, path: string): Promi
 
         return data.transactionId;
     } catch (error) {
-        console.error('トランザクションIDの取得中にエラーが発生しました:', error);
         throw error;
     }
 }
