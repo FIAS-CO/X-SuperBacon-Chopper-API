@@ -734,7 +734,7 @@ app.get('/api/check-heap-size', async (c: Context) => {
   });
 });
 
-app.get('/api/check-by-user-inner-asdafdasdfadsfa', rateLimit, ShadowBanCheckController.checkByUserInner);
+app.get('/api/check-by-user-inner-asdafdasdfadsfa', ShadowBanCheckController.checkByUserInner);
 
 const port = 3001
 Log.info(`Server is running on port ${port}`)
