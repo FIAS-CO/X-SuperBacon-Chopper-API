@@ -341,6 +341,7 @@ app.get('/api/get-auth-tokens', async (c) => {
       id: token.id,
       accountId: token.accountId,
       token: token.token,
+      csrfToken: token.csrfToken,
       lastUsed: token.lastUsed,
       resetTime: token.resetTime,
       updatedAt: token.updatedAt
