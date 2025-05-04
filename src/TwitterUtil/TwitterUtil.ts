@@ -326,14 +326,14 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
     const tryFetch = async (retryCount = 0): Promise<any> => {
         const authTokenSet = await authTokenService.getRequiredTokenSet();
         const searchQuery = `from:${screenName}`;
-        const transactionId = await getTransactionIdAsync("GET", "/i/api/graphql/AIdc203rPpK_k_2KWSdm7g/SearchTimeline");
+        const transactionId = await getTransactionIdAsync("GET", "/i/api/graphql/SV5-ri_UzGD2iatzT24u5A/SearchTimeline");
         const referer = `https://x.com/search?q=${searchQuery}&src=typed_query`;
         const headers = await createHeaderWithTransactionId(authTokenSet, referer, transactionId);
         const searchParams = new URLSearchParams({
             "variables": JSON.stringify({
                 "rawQuery": searchQuery,
                 "count": 20,
-                "querySource": "typed_query",
+                "querySource": "recent_search_click",
                 "product": "Top"
             }),
             "features": JSON.stringify({
@@ -371,7 +371,7 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
             })
         });
 
-        const apiUrl = `https://x.com/i/api/graphql/AIdc203rPpK_k_2KWSdm7g/SearchTimeline?${searchParams}`;
+        const apiUrl = `https://x.com/i/api/graphql/SV5-ri_UzGD2iatzT24u5A/SearchTimeline?${searchParams}`;
         const response = await fetch(apiUrl, { headers });
 
         authTokenService.updateRateLimit(authTokenSet.token, response.headers);
