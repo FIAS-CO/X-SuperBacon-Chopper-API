@@ -4,7 +4,7 @@ import { MiddlewareHandler } from 'hono';
 // メモリベースのレートリミッター
 const longRateLimiter = new RateLimiterMemory({
     points: 40,
-    duration: 300,
+    duration: 1800,
     blockDuration: 86400     // 超えたら86400秒 = 1日間ブロック
 });
 
