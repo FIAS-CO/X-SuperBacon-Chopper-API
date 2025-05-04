@@ -860,7 +860,7 @@ async function handleTwitterApiError(response: Response, authToken: string, cont
  * @param path 
  * @returns 
  */
-async function getTransactionIdAsync(method: string, path: string): Promise<string> {
+export async function getTransactionIdAsync(method: string, path: string): Promise<string> {
     try {
         const requestOptions = {
             method: 'POST',
