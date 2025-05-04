@@ -301,11 +301,11 @@ app.get('/api/save-auth-token', async (c) => {
     const currentCsrfToken = currentTokenSet?.csrfToken ?? "NO_DATA";
 
     // 既存のトークンと新しいトークンが異なる場合のみ更新
-    if (!currentToken || currentToken !== newToken) {
+    if (currentToken !== newToken || currentCsrfToken !== newCsrfToken) {
       await authTokenService.saveToken(newToken, newCsrfToken, accountId);
     }
 
-    const isUpdated = currentToken !== newToken;
+    const isUpdated = currentToken !== newToken || currentCsrfToken !== newCsrfToken;
     discordNotifyService.notifyAuthTokenRefresh(
       accountId,
       currentToken,
