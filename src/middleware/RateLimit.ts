@@ -2,9 +2,16 @@ import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { MiddlewareHandler } from 'hono';
 
 // メモリベースのレートリミッター
-const rateLimiter = new RateLimiterMemory({
-    points: 100,     // 1分間に10リクエストまで許可
-    duration: 86400,   // 秒単位（1分）
+const longRateLimiter = new RateLimiterMemory({
+    points: 40,
+    duration: 300,
+    blockDuration: 86400     // 超えたら86400秒 = 1日間ブロック
+});
+
+const shortRateLimiter = new RateLimiterMemory({
+    points: 4,
+    duration: 4,
+    blockDuration: 1800     // 超えたら86400秒 = 1日間ブロック
 });
 
 // Hono用のミドルウェア
@@ -16,7 +23,10 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
     }
 
     try {
-        await rateLimiter.consume(key); // keyごとに制限を適用
+        await Promise.all([
+            shortRateLimiter.consume(key),
+            longRateLimiter.consume(key),
+        ]);
         await next(); // 通過
     } catch {
         return c.text('Too Many Requests', 429);
