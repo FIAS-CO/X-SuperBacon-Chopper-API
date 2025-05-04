@@ -18,6 +18,7 @@ import { authTokenService } from './service/TwitterAuthTokenService'
 import { Log } from './util/Log'
 import { discordNotifyService } from './service/DiscordNotifyService'
 import { ShadowBanCheckController } from './controller/ShadowBanCheckController'
+import { rateLimit } from './middleware/RateLimit'
 
 type Bindings = {}
 
@@ -259,7 +260,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
   }
 })
 
-app.get('/api/check-by-user', ShadowBanCheckController.checkByUser);
+app.get('/api/check-by-user', rateLimit, ShadowBanCheckController.checkByUser);
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
@@ -717,6 +718,19 @@ app.get('/api/testtest', async (c: Context) => {
       details: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }
+});
+
+app.get('/api/check-heap-size', async (c: Context) => {
+  const v8 = require('v8');
+
+  const heapStats = v8.getHeapStatistics();
+  const heapSizeLimit = (heapStats.heap_size_limit / 1024 / 1024).toFixed(2);
+  const usedHeapSize = (heapStats.used_heap_size / 1024 / 1024).toFixed(2);
+
+  return c.json({
+    HeapSizeLimit: `${heapSizeLimit} MB`,
+    UsedHeapSize: `${usedHeapSize} MB`,
+  });
 });
 
 const port = 3001
