@@ -7,7 +7,8 @@ import {
   fetchUserTweetsAsync,
   getTimelineTweetInfo,
   batchCheckTweetUrls,
-  fetchSearchSuggestionAsync
+  fetchSearchSuggestionAsync,
+  getTransactionIdAsync
 } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
@@ -735,6 +736,12 @@ app.get('/api/check-heap-size', async (c: Context) => {
 });
 
 app.get('/api/check-by-user-inner-asdafdasdfadsfa', ShadowBanCheckController.checkByUserInner);
+
+app.get('/api/create-transaction-id', async (c: Context) => {
+  return c.json({
+    transactionId: await getTransactionIdAsync("GET", "/i/api/graphql/SV5-ri_UzGD2iatzT24u5A/SearchTimeline")
+  })
+});
 
 const port = 3001
 Log.info(`Server is running on port ${port}`)
