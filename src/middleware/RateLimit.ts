@@ -11,7 +11,7 @@ const longRateLimiter = new RateLimiterMemory({
 const shortRateLimiter = new RateLimiterMemory({
     points: 4,
     duration: 1,
-    blockDuration: 1800     // 超えたら86400秒 = 1日間ブロック
+    blockDuration: 1800     // 超えたら1800秒 = 30分間ブロック
 });
 
 // Hono用のミドルウェア
