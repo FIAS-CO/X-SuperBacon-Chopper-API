@@ -14,6 +14,8 @@ export class ShadowBanCheckService {
     ) {
         const monitor = new PerformanceMonitor();
 
+        Log.info(`Check by user start. name:${screenName} searchban:${checkSearchBan} repost:${checkRepost}`)
+
         var result: ShadowBanCheckResult = {
             not_found: false,
             suspend: false,
