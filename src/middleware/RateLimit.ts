@@ -3,6 +3,7 @@ import { Context, MiddlewareHandler } from 'hono';
 import { discordNotifyService } from '../service/DiscordNotifyService';
 import { serverDecryption } from '../util/ServerDecryption';
 import { respondWithError } from '../util/Response';
+import { Log } from '../util/Log';
 import { ErrorCodes } from '../errors/ErrorCodes';
 
 const longRateLimiter = new RateLimiterMemory({
@@ -62,10 +63,13 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
 };
 
 async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Short"): Promise<void> {
-    const decryptedKey = serverDecryption.decrypt(key);
+    const ip = serverDecryption.decrypt(key);
+
+    Log.info(`Rate limit exceeded for IP: ${ip} on ${limiterName} limiter`);
+
     const message = `
 🚨 **Rate Limit Alert**
-**Key:** ${decryptedKey}
+**IP:** ${ip}
 **Limiter:** ${limiterName}
     `.trim();
 
