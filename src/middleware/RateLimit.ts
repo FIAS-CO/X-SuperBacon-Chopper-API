@@ -2,6 +2,9 @@ import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { Context, MiddlewareHandler } from 'hono';
 import { discordNotifyService } from '../service/DiscordNotifyService';
 import { serverDecryption } from '../util/ServerDecryption';
+import { respondWithError } from '../util/Response';
+import { Log } from '../util/Log';
+import { ErrorCodes } from '../errors/ErrorCodes';
 
 const longRateLimiter = new RateLimiterMemory({
     points: 40,            // 40回まで許可（APIアクセスなど）
@@ -21,11 +24,31 @@ const shortRateLimiter = new RateLimiterMemory({
     blockDuration: 1800    // 超過時は1800秒（=30分）ブロック
 });
 
+const veryShortRateLimiter = new RateLimiterMemory({
+    points: 4,             // 4回まで許可
+    duration: 2,           // 2秒（=2秒）ごとにリセット
+    blockDuration: 1800    // 超過時は1800秒（=30分）ブロック
+});
+
+/**
+ * 現状 check-by-user API のみを対象にしたレートリミッター
+ * @param c 
+ * @param next 
+ * @returns 
+ */
 export const rateLimit: MiddlewareHandler = async (c, next) => {
-    const key = c.req.query('key'); // URLパラメータからkeyを取得
+    const data = await c.req.json();
+    const key = data.key; // URLパラメータからkeyを取得
 
     if (!key) {
-        return c.text('Missing key', 400);
+        return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_IP, 400);
+    }
+
+    try {
+        await veryShortRateLimiter.consume(key);
+    } catch {
+        notifyRateLimit(key, 'VeryShort');
+        return rateLimitExceededResponse(c);
     }
 
     try {
@@ -52,17 +75,25 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
     await next();
 };
 
-async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Short"): Promise<void> {
-    const decryptedKey = serverDecryption.decrypt(key);
+async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Short" | "VeryShort"): Promise<void> {
+    const ip = serverDecryption.decrypt(key);
+
+    Log.info(`Rate limit exceeded for IP: ${ip} on ${limiterName} limiter`);
+    const limitDetail = limiterName === 'Long' ? '20分で40回まで許容。6時間ブロック'
+        : limiterName === 'Middle' ? '2分で9回まで許容。30分ブロック'
+            : limiterName === 'Short' ? '1分で5回まで許容。30分ブロック'
+                : '2秒で4回まで許容。30分ブロック';
+
     const message = `
-🚨 **Rate Limit Alert**
-**Key:** ${decryptedKey}
+🚨 **大量アクセスを検知しました**
+**IP:** ${ip}
 **Limiter:** ${limiterName}
+**Detail:** ${limitDetail}
     `.trim();
 
     await discordNotifyService.sendMessage(message);
 }
 
 function rateLimitExceededResponse(c: Context): Response {
-    return c.text('Too Many Requests', 429);
+    return respondWithError(c, 'API not available.', 9999, 429);
 }

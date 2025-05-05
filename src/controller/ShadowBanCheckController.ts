@@ -3,30 +3,53 @@ import { serverDecryption } from '../util/ServerDecryption';
 import { shadowBanCheckService } from '../service/ShadowBanCheckService';
 import { Log } from '../util/Log';
 import { discordNotifyService } from '../service/DiscordNotifyService';
+import { TurnstileValidator } from '../util/TurnstileValidator';
+import { ErrorCodes } from '../errors/ErrorCodes';
+import { respondWithError } from '../util/Response';
 
 export class ShadowBanCheckController {
     static async checkByUser(c: Context) {
         let screenName: string | undefined = undefined;
 
         try {
+            const data = await c.req.json();
             // リクエストパラメータの取得と検証
-            screenName = c.req.query('screen_name');
-            if (!screenName) {
-                return c.json({ error: 'screen_name parameter is required' }, 400);
-            }
-
-            const checkSearchBan = c.req.query('searchban') === 'true';
-            const checkRepost = c.req.query('repost') === 'true';
-
-            const encryptedIp = c.req.query('key');
+            screenName = data.screen_name;
+            const checkSearchBan = data.searchban;
+            const checkRepost = data.repost;
+            const encryptedIp = data.key;
             const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
 
-            // IP形式の検証
-            if (!ShadowBanCheckController.isValidIpFormat(ip)) {
-                return c.json({ error: 'Validation failed.' }, 403);
+            if (!screenName || checkSearchBan == null || checkRepost == null || !encryptedIp) {
+                Log.error('パラメータが足りないcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
+                await ShadowBanCheckController.notifyParamlessRequest(screenName, checkSearchBan, checkRepost, ip);
+                return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_PARAMS, 400);
             }
 
-            // サービスに処理を委譲
+            if (!ShadowBanCheckController.isValidIpFormat(ip)) {
+                Log.error('IPが不正なcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
+                await ShadowBanCheckController.notifyInvalidIp(screenName, checkSearchBan, checkRepost, ip);
+                return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
+            }
+
+            const turnstileToken = data.turnstileToken;
+            if (!turnstileToken) {
+                Log.error('APIを直接叩けなくするためのトークンがないcheck-by-userへのアクセスがあったので防御しました。'
+                    , { screenName, checkSearchBan, checkRepost, ip });
+                await ShadowBanCheckController.notifyNoTurnstileToken(screenName, checkSearchBan, checkRepost, ip);
+                return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_TURNSTILE_TOKEN);
+            }
+
+            const validator = new TurnstileValidator(process.env.TURNSTILE_SECRET_KEY!);
+            const isValid = await validator.verify(turnstileToken, ip);
+
+            if (!isValid) {
+                Log.error('APIを直接叩けなくするためのトークンが間違っているcheck-by-userへのアクセスがあったので防御しました。'
+                    , { screenName, checkSearchBan, checkRepost, ip });
+                await ShadowBanCheckController.notifyInvalidTurnstileToken(screenName, checkSearchBan, checkRepost, ip);
+                return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_TURNSTILE_TOKEN);
+            }
+
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
                 ip,
@@ -37,19 +60,14 @@ export class ShadowBanCheckController {
             return c.json(result);
 
         } catch (error) {
-            // エラーハンドリング
             Log.error('/api/check-by-userの不明なエラー:', error);
 
-            // Discordに通知を送信
             await discordNotifyService.notifyError(
                 error instanceof Error ? error : new Error(String(error)),
                 `API: check-by-user (screenName: ${screenName})`
             );
 
-            return c.json({
-                error: 'Internal server error',
-                details: error instanceof Error ? error.message : 'Unknown error'
-            }, 500);
+            return respondWithError(c, 'Internal server error', 9999, 500);
         }
     }
 
@@ -57,7 +75,6 @@ export class ShadowBanCheckController {
         let screenName: string | undefined = undefined;
 
         try {
-            // リクエストパラメータの取得と検証
             screenName = c.req.query('screen_name');
             if (!screenName) {
                 return c.json({ error: 'screen_name parameter is required' }, 400);
@@ -69,7 +86,6 @@ export class ShadowBanCheckController {
             const encryptedIp = c.req.query('key');
             const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
 
-            // サービスに処理を委譲
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
                 ip,
@@ -103,5 +119,51 @@ export class ShadowBanCheckController {
         const parts = ip.split('.');
         return parts.length === 4;
     }
+    static async notifyParamlessRequest(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string): Promise<void> {
+        const message = `
+🚨 **パラーメータの足りないcheck-by-userへのアクセスがあったので防御しました。**
+**Screen Name:** ${screenName ?? 'No screen name'}
+**Check Search Ban:** ${checkSearchBan ?? 'No Check Search Ban'}   
+**Check Repost:** ${checkRepost ?? 'No Check Repost'}
+**IP:** ${ip ?? 'No IP'}
+        `.trim();
 
+        await discordNotifyService.sendMessage(message);
+    }
+
+    static async notifyInvalidIp(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string): Promise<void> {
+        const message = `
+🚨 **IPが不正なcheck-by-userへのアクセスがあったので防御しました。**
+**Screen Name:** ${screenName ?? 'No screen name'}
+**Check Search Ban:** ${checkSearchBan ?? 'No Check Search Ban'}   
+**Check Repost:** ${checkRepost ?? 'No Check Repost'}
+**IP:** ${ip ?? 'No IP'}
+        `.trim();
+
+        await discordNotifyService.sendMessage(message);
+    }
+
+    static async notifyNoTurnstileToken(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string): Promise<void> {
+        const message = `
+🚨 **APIを直接叩けなくするためのトークンがないcheck-by-userへのアクセスがあったので防御しました。**
+**Screen Name:** ${screenName ?? 'No screen name'}
+**Check Search Ban:** ${checkSearchBan ?? 'No Check Search Ban'}   
+**Check Repost:** ${checkRepost ?? 'No Check Repost'}
+**IP:** ${ip ?? 'No IP'}
+        `.trim();
+
+        await discordNotifyService.sendMessage(message);
+    }
+
+    static async notifyInvalidTurnstileToken(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string): Promise<void> {
+        const message = `
+🚨 **APIを直接叩けなくするためのトークンが間違っているcheck-by-userへのアクセスがあったので防御しました。**
+**Screen Name:** ${screenName ?? 'No screen name'}
+**Check Search Ban:** ${checkSearchBan ?? 'No Check Search Ban'}   
+**Check Repost:** ${checkRepost ?? 'No Check Repost'}
+**IP:** ${ip ?? 'No IP'}
+        `.trim();
+
+        await discordNotifyService.sendMessage(message);
+    }
 }
