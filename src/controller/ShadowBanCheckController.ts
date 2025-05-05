@@ -3,6 +3,8 @@ import { serverDecryption } from '../util/ServerDecryption';
 import { shadowBanCheckService } from '../service/ShadowBanCheckService';
 import { Log } from '../util/Log';
 import { discordNotifyService } from '../service/DiscordNotifyService';
+import { StatusCode } from 'hono/utils/http-status';
+import { ErrorCodes } from '../errors/ErrorCodes';
 
 export class ShadowBanCheckController {
     static async checkByUser(c: Context) {
@@ -13,7 +15,7 @@ export class ShadowBanCheckController {
             // リクエストパラメータの取得と検証
             screenName = data.screen_name;
             if (!screenName) {
-                return c.json({ error: 'screen_name parameter is required' }, 400);
+                return ShadowBanCheckController.respondWithError(c, ErrorCodes.MISSING_SCREEN_NAME, 400);
             }
 
             const checkSearchBan = data.searchban;
@@ -23,7 +25,7 @@ export class ShadowBanCheckController {
 
             // IP形式の検証
             if (!ShadowBanCheckController.isValidIpFormat(ip)) {
-                return c.json({ error: 'Validation failed.' }, 403);
+                return ShadowBanCheckController.respondWithError(c, ErrorCodes.INVALID_IP_FORMAT);
             }
 
             // サービスに処理を委譲
@@ -104,4 +106,13 @@ export class ShadowBanCheckController {
         return parts.length === 4;
     }
 
+    static respondWithError(c: Context, errorCode: number, httpStatus = 403) {
+        return c.json(
+            {
+                message: 'Validation failed.',
+                code: errorCode
+            },
+            httpStatus as StatusCode
+        );
+    }
 }
