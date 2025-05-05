@@ -16,7 +16,7 @@ export class ShadowBanCheckController {
             // リクエストパラメータの取得と検証
             screenName = data.screen_name;
             if (!screenName) {
-                return ShadowBanCheckController.respondWithError(c, ErrorCodes.MISSING_SCREEN_NAME, 400);
+                return ShadowBanCheckController.respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_SCREEN_NAME, 400);
             }
 
             const checkSearchBan = data.searchban;
@@ -26,19 +26,19 @@ export class ShadowBanCheckController {
 
             const turnstileToken = data.turnstileToken;
             if (!turnstileToken) {
-                return ShadowBanCheckController.respondWithError(c, ErrorCodes.MISSING_TURNSTILE_TOKEN);
+                return ShadowBanCheckController.respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_TURNSTILE_TOKEN);
             }
 
             const validator = new TurnstileValidator(process.env.TURNSTILE_SECRET_KEY!);
             const isValid = await validator.verify(turnstileToken, ip);
 
             if (!isValid) {
-                return ShadowBanCheckController.respondWithError(c, ErrorCodes.INVALID_TURNSTILE_TOKEN);
+                return ShadowBanCheckController.respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_TURNSTILE_TOKEN);
             }
 
             // IP形式の検証
             if (!ShadowBanCheckController.isValidIpFormat(ip)) {
-                return ShadowBanCheckController.respondWithError(c, ErrorCodes.INVALID_IP_FORMAT);
+                return ShadowBanCheckController.respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
             }
 
             // サービスに処理を委譲
@@ -61,10 +61,7 @@ export class ShadowBanCheckController {
                 `API: check-by-user (screenName: ${screenName})`
             );
 
-            return c.json({
-                error: 'Internal server error',
-                details: error instanceof Error ? error.message : 'Unknown error'
-            }, 500);
+            return ShadowBanCheckController.respondWithError(c, 'Internal server error', 9999, 500);
         }
     }
 
@@ -119,10 +116,10 @@ export class ShadowBanCheckController {
         return parts.length === 4;
     }
 
-    static respondWithError(c: Context, errorCode: number, httpStatus = 403) {
+    static respondWithError(c: Context, message: string, errorCode: number, httpStatus = 403) {
         return c.json(
             {
-                message: 'Validation failed.',
+                message: message,
                 code: errorCode
             },
             httpStatus as StatusCode
