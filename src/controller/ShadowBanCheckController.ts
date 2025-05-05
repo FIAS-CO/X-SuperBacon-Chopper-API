@@ -9,16 +9,16 @@ export class ShadowBanCheckController {
         let screenName: string | undefined = undefined;
 
         try {
+            const data = await c.req.json();
             // リクエストパラメータの取得と検証
-            screenName = c.req.query('screen_name');
+            screenName = data.screen_name;
             if (!screenName) {
                 return c.json({ error: 'screen_name parameter is required' }, 400);
             }
 
-            const checkSearchBan = c.req.query('searchban') === 'true';
-            const checkRepost = c.req.query('repost') === 'true';
-
-            const encryptedIp = c.req.query('key');
+            const checkSearchBan = data.searchban;
+            const checkRepost = data.repost;
+            const encryptedIp = data.key;
             const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
 
             // IP形式の検証

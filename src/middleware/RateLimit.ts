@@ -21,8 +21,15 @@ const shortRateLimiter = new RateLimiterMemory({
     blockDuration: 1800    // 超過時は1800秒（=30分）ブロック
 });
 
+/**
+ * 現状 check-by-user API のみを対象にしたレートリミッター
+ * @param c 
+ * @param next 
+ * @returns 
+ */
 export const rateLimit: MiddlewareHandler = async (c, next) => {
-    const key = c.req.query('key'); // URLパラメータからkeyを取得
+    const data = await c.req.json();
+    const key = data.key; // URLパラメータからkeyを取得
 
     if (!key) {
         return c.text('Missing key', 400);
