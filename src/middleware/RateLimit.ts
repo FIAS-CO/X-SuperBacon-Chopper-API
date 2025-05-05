@@ -2,6 +2,8 @@ import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { Context, MiddlewareHandler } from 'hono';
 import { discordNotifyService } from '../service/DiscordNotifyService';
 import { serverDecryption } from '../util/ServerDecryption';
+import { respondWithError } from '../util/Response';
+import { ErrorCodes } from '../errors/ErrorCodes';
 
 const longRateLimiter = new RateLimiterMemory({
     points: 40,            // 40回まで許可（APIアクセスなど）
@@ -32,7 +34,7 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
     const key = data.key; // URLパラメータからkeyを取得
 
     if (!key) {
-        return c.text('Missing key', 400);
+        return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_IP, 400);
     }
 
     try {
@@ -71,5 +73,5 @@ async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Sh
 }
 
 function rateLimitExceededResponse(c: Context): Response {
-    return c.text('Too Many Requests', 429);
+    return respondWithError(c, 'API not available.', 9999, 429);
 }

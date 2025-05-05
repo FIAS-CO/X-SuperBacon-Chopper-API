@@ -6,6 +6,7 @@ import { discordNotifyService } from '../service/DiscordNotifyService';
 import { TurnstileValidator } from '../util/TurnstileValidator';
 import { StatusCode } from 'hono/utils/http-status';
 import { ErrorCodes } from '../errors/ErrorCodes';
+import { respondWithError } from '../util/Response';
 
 export class ShadowBanCheckController {
     static async checkByUser(c: Context) {
@@ -61,7 +62,7 @@ export class ShadowBanCheckController {
                 `API: check-by-user (screenName: ${screenName})`
             );
 
-            return ShadowBanCheckController.respondWithError(c, 'Internal server error', 9999, 500);
+            return respondWithError(c, 'Internal server error', 9999, 500);
         }
     }
 
@@ -116,13 +117,4 @@ export class ShadowBanCheckController {
         return parts.length === 4;
     }
 
-    static respondWithError(c: Context, message: string, errorCode: number, httpStatus = 403) {
-        return c.json(
-            {
-                message: message,
-                code: errorCode
-            },
-            httpStatus as StatusCode
-        );
-    }
 }
