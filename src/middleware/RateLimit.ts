@@ -24,6 +24,12 @@ const shortRateLimiter = new RateLimiterMemory({
     blockDuration: 1800    // 超過時は1800秒（=30分）ブロック
 });
 
+const veryShortRateLimiter = new RateLimiterMemory({
+    points: 4,             // 4回まで許可
+    duration: 2,           // 2秒（=2秒）ごとにリセット
+    blockDuration: 1800    // 超過時は1800秒（=30分）ブロック
+});
+
 /**
  * 現状 check-by-user API のみを対象にしたレートリミッター
  * @param c 
@@ -36,6 +42,13 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
 
     if (!key) {
         return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_IP, 400);
+    }
+
+    try {
+        await veryShortRateLimiter.consume(key);
+    } catch {
+        notifyRateLimit(key, 'VeryShort');
+        return rateLimitExceededResponse(c);
     }
 
     try {
@@ -62,15 +75,20 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
     await next();
 };
 
-async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Short"): Promise<void> {
+async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Short" | "VeryShort"): Promise<void> {
     const ip = serverDecryption.decrypt(key);
 
     Log.info(`Rate limit exceeded for IP: ${ip} on ${limiterName} limiter`);
+    const limitDetail = limiterName === 'Long' ? '20分で40回まで許容。6時間ブロック'
+        : limiterName === 'Middle' ? '2分で9回まで許容。30分ブロック'
+            : limiterName === 'Short' ? '1分で5回まで許容。30分ブロック'
+                : '2秒で4回まで許容。30分ブロック';
 
     const message = `
-🚨 **Rate Limit Alert**
+🚨 **大量アクセスを検知しました**
 **IP:** ${ip}
 **Limiter:** ${limiterName}
+**Detail:** ${limitDetail}
     `.trim();
 
     await discordNotifyService.sendMessage(message);
