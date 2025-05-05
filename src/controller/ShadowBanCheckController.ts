@@ -32,23 +32,23 @@ export class ShadowBanCheckController {
                 return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
             }
 
-            const turnstileToken = data.turnstileToken;
-            if (!turnstileToken) {
-                Log.error('APIを直接叩けなくするためのトークンがないcheck-by-userへのアクセスがあったので防御しました。'
-                    , { screenName, checkSearchBan, checkRepost, ip });
-                await ShadowBanCheckController.notifyNoTurnstileToken(screenName, checkSearchBan, checkRepost, ip);
-                return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_TURNSTILE_TOKEN);
-            }
+            // const turnstileToken = data.turnstileToken;
+            // if (!turnstileToken) {
+            //     Log.error('APIを直接叩けなくするためのトークンがないcheck-by-userへのアクセスがあったので防御しました。'
+            //         , { screenName, checkSearchBan, checkRepost, ip });
+            //     await ShadowBanCheckController.notifyNoTurnstileToken(screenName, checkSearchBan, checkRepost, ip);
+            //     return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_TURNSTILE_TOKEN);
+            // }
 
-            const validator = new TurnstileValidator(process.env.TURNSTILE_SECRET_KEY!);
-            const isValid = await validator.verify(turnstileToken, ip);
+            // const validator = new TurnstileValidator(process.env.TURNSTILE_SECRET_KEY!);
+            // const isValid = await validator.verify(turnstileToken, ip);
 
-            if (!isValid) {
-                Log.error('APIを直接叩けなくするためのトークンが間違っているcheck-by-userへのアクセスがあったので防御しました。'
-                    , { screenName, checkSearchBan, checkRepost, ip });
-                await ShadowBanCheckController.notifyInvalidTurnstileToken(screenName, checkSearchBan, checkRepost, ip);
-                return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_TURNSTILE_TOKEN);
-            }
+            // if (!isValid) {
+            //     Log.error('APIを直接叩けなくするためのトークンが間違っているcheck-by-userへのアクセスがあったので防御しました。'
+            //         , { screenName, checkSearchBan, checkRepost, ip });
+            //     await ShadowBanCheckController.notifyInvalidTurnstileToken(screenName, checkSearchBan, checkRepost, ip);
+            //     return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_TURNSTILE_TOKEN);
+            // }
 
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
