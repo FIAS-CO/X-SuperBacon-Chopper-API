@@ -3,6 +3,7 @@ import { serverDecryption } from '../util/ServerDecryption';
 import { shadowBanCheckService } from '../service/ShadowBanCheckService';
 import { Log } from '../util/Log';
 import { discordNotifyService } from '../service/DiscordNotifyService';
+import { TurnstileValidator } from '../util/TurnstileValidator';
 import { StatusCode } from 'hono/utils/http-status';
 import { ErrorCodes } from '../errors/ErrorCodes';
 
@@ -22,6 +23,18 @@ export class ShadowBanCheckController {
             const checkRepost = data.repost;
             const encryptedIp = data.key;
             const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+
+            const turnstileToken = data.turnstileToken;
+            if (!turnstileToken) {
+                return ShadowBanCheckController.respondWithError(c, ErrorCodes.MISSING_TURNSTILE_TOKEN);
+            }
+
+            const validator = new TurnstileValidator(process.env.TURNSTILE_SECRET_KEY!);
+            const isValid = await validator.verify(turnstileToken, ip);
+
+            if (!isValid) {
+                return ShadowBanCheckController.respondWithError(c, ErrorCodes.INVALID_TURNSTILE_TOKEN);
+            }
 
             // IP形式の検証
             if (!ShadowBanCheckController.isValidIpFormat(ip)) {
