@@ -50,7 +50,6 @@ export class ShadowBanCheckController {
                 return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_TURNSTILE_TOKEN);
             }
 
-            // サービスに処理を委譲
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
                 ip,
@@ -61,10 +60,8 @@ export class ShadowBanCheckController {
             return c.json(result);
 
         } catch (error) {
-            // エラーハンドリング
             Log.error('/api/check-by-userの不明なエラー:', error);
 
-            // Discordに通知を送信
             await discordNotifyService.notifyError(
                 error instanceof Error ? error : new Error(String(error)),
                 `API: check-by-user (screenName: ${screenName})`
@@ -78,7 +75,6 @@ export class ShadowBanCheckController {
         let screenName: string | undefined = undefined;
 
         try {
-            // リクエストパラメータの取得と検証
             screenName = c.req.query('screen_name');
             if (!screenName) {
                 return c.json({ error: 'screen_name parameter is required' }, 400);
@@ -90,7 +86,6 @@ export class ShadowBanCheckController {
             const encryptedIp = c.req.query('key');
             const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
 
-            // サービスに処理を委譲
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
                 ip,
