@@ -44,38 +44,44 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
         return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_IP, 400);
     }
 
+    const connectionIp = c.req.header('x-forwarded-for') ||
+        c.req.raw.headers.get('x-forwarded-for') ||
+        c.req.header('x-real-ip') ||
+        c.env?.remoteAddress ||
+        'unknown';
+
     try {
         await veryShortRateLimiter.consume(key);
     } catch {
-        notifyRateLimit(key, 'VeryShort');
+        notifyRateLimit(key, 'VeryShort', connectionIp);
         return rateLimitExceededResponse(c);
     }
 
     try {
         await shortRateLimiter.consume(key);
     } catch {
-        notifyRateLimit(key, 'Short');
+        notifyRateLimit(key, 'Short', connectionIp);
         return rateLimitExceededResponse(c);
     }
 
     try {
         await middleRateLimiter.consume(key);
     } catch {
-        notifyRateLimit(key, 'Middle');
+        notifyRateLimit(key, 'Middle', connectionIp);
         return rateLimitExceededResponse(c);
     }
 
     try {
         await longRateLimiter.consume(key);
     } catch {
-        notifyRateLimit(key, 'Long');
+        notifyRateLimit(key, 'Long', connectionIp);
         return rateLimitExceededResponse(c);
     }
 
     await next();
 };
 
-async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Short" | "VeryShort"): Promise<void> {
+async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Short" | "VeryShort", connectionIp: string = 'unknown'): Promise<void> {
     const ip = serverDecryption.decrypt(key);
 
     Log.info(`Rate limit exceeded for IP: ${ip} on ${limiterName} limiter`);
@@ -89,6 +95,7 @@ async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Sh
 **IP:** ${ip}
 **Limiter:** ${limiterName}
 **Detail:** ${limitDetail}
+**Connection IP:** ${connectionIp}
     `.trim();
 
     await discordNotifyService.sendMessage(message);
