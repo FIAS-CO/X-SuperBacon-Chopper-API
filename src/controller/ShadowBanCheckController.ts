@@ -41,9 +41,13 @@ export class ShadowBanCheckController {
 
             const turnstileToken = data.turnstileToken;
             if (!turnstileToken) {
+                const headers = c.req.raw.headers;
+                const userAgent = headers.get('user-agent') || 'なし';
+                const referer = headers.get('referer') || 'なし';
+
                 Log.error('APIを直接叩けなくするためのトークンがないcheck-by-userへのアクセスがあったので防御しました。'
-                    , { screenName, checkSearchBan, checkRepost, ip });
-                await ShadowBanCheckController.notifyNoTurnstileToken(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+                    , { screenName, checkSearchBan, checkRepost, ip, connectionIp, userAgent, referer });
+                await ShadowBanCheckController.notifyNoTurnstileToken(screenName, checkSearchBan, checkRepost, ip, connectionIp, userAgent, referer);
                 return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_TURNSTILE_TOKEN);
             }
 
@@ -167,7 +171,7 @@ export class ShadowBanCheckController {
         await discordNotifyService.sendMessage(message);
     }
 
-    static async notifyNoTurnstileToken(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
+    static async notifyNoTurnstileToken(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string, userAgent: string, referer: string): Promise<void> {
         const message = `
 🚨 **APIを直接叩けなくするためのトークンがないcheck-by-userへのアクセスがあったので防御しました。**
 **Screen Name:** ${screenName ?? 'No screen name'}
@@ -175,6 +179,8 @@ export class ShadowBanCheckController {
 **Check Repost:** ${checkRepost ?? 'No Check Repost'}
 **IP:** ${ip ?? 'No IP'}
 **Connection IP:** ${connectionIp ?? 'No Connection IP'}
+**User-Agent:** ${userAgent}
+**Referer:** ${referer}
         `.trim();
 
         await discordNotifyService.sendMessage(message);
