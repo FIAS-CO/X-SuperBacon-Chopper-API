@@ -735,7 +735,7 @@ app.get('/api/check-heap-size', async (c: Context) => {
   });
 });
 
-app.get('/api/check-by-user-inner-asdafdasdfadsfa', ShadowBanCheckController.checkByUserInner);
+// app.get('/api/check-by-user-inner-asdafdasdfadsfa', ShadowBanCheckController.checkByUserInner);
 
 app.get('/api/create-transaction-id', async (c: Context) => {
   return c.json({
