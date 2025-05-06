@@ -4,6 +4,7 @@ export const ErrorCodes = {
     INVALID_TURNSTILE_TOKEN: 1003,
     INVALID_IP_FORMAT: 1004,
     MISSING_CHECK_BY_USER_IP: 1005,
+    DUPLICATE_TURNSTILE_TOKEN: 1006,
 } as const;
 
 export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];

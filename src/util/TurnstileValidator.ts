@@ -5,7 +5,7 @@ export class TurnstileValidator {
         this.secretKey = secretKey;
     }
 
-    async verify(token: string, ip?: string): Promise<boolean> {
+    async verify(token: string, ip?: string): Promise<{ isValid: boolean; errorCodes: string[] }> {
         const formData = new URLSearchParams();
         formData.append("secret", this.secretKey);
         formData.append("response", token);
@@ -13,18 +13,26 @@ export class TurnstileValidator {
             formData.append("remoteip", ip);
         }
 
-        const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formData.toString(),
-        });
+        try {
+            const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: formData.toString(),
+            });
 
-        if (!response.ok) {
-            console.error("Turnstile verification failed: HTTP error");
-            return false;
+            if (!response.ok) {
+                console.error(`Turnstile verification failed: HTTP ${response.status}`);
+                return { isValid: false, errorCodes: [`http_error_${response.status}`] };
+            }
+
+            const result = await response.json();
+            return {
+                isValid: result.success === true,
+                errorCodes: result["error-codes"] || []
+            };
+        } catch (error) {
+            console.error("Turnstile verification failed:", error);
+            return { isValid: false, errorCodes: ["network_error"] };
         }
-
-        const result = await response.json();
-        return result.success === true;
     }
 }

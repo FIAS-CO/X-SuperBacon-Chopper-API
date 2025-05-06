@@ -48,15 +48,30 @@ export class ShadowBanCheckController {
             }
 
             const validator = new TurnstileValidator(process.env.TURNSTILE_SECRET_KEY!);
-            const isValid = await validator.verify(turnstileToken, ip);
+            const verificationResult = await validator.verify(turnstileToken, ip);
 
-            if (!isValid) {
-                Log.error('APIを直接叩けなくするためのトークンが間違っているcheck-by-userへのアクセスがあったので防御しました。'
-                    , { screenName, checkSearchBan, checkRepost, ip });
-                await ShadowBanCheckController.notifyInvalidTurnstileToken(screenName, checkSearchBan, checkRepost, ip, connectionIp);
-                return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_TURNSTILE_TOKEN);
+            if (!verificationResult.isValid) {
+                // エラーコードを含めてログ出力
+                Log.error('APIを直接叩けなくするためのトークンが無効なcheck-by-userへのアクセスがありました。',
+                    { screenName, checkSearchBan, checkRepost, ip, errorCodes: verificationResult.errorCodes });
+
+                // Discordへの通知にエラーコードを含める
+                await ShadowBanCheckController.notifyInvalidTurnstileToken(
+                    screenName,
+                    checkSearchBan,
+                    checkRepost,
+                    ip,
+                    connectionIp,
+                    verificationResult.errorCodes
+                );
+
+                // エラーコードに基づいて適切なエラーレスポンスを返す
+                if (verificationResult.errorCodes?.includes("timeout-or-duplicate")) {
+                    return respondWithError(c, 'Validation failed.', ErrorCodes.DUPLICATE_TURNSTILE_TOKEN);
+                } else {
+                    return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_TURNSTILE_TOKEN);
+                }
             }
-
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
                 ip,
@@ -165,7 +180,13 @@ export class ShadowBanCheckController {
         await discordNotifyService.sendMessage(message);
     }
 
-    static async notifyInvalidTurnstileToken(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
+    static async notifyInvalidTurnstileToken(screenName: string | undefined,
+        checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string,
+        errorCodes: string[]): Promise<void> {
+        const errorCodesList = errorCodes.length > 0
+            ? errorCodes.map(code => `  - ${code}`).join("\n")
+            : "None";
+
         const message = `
 🚨 **APIを直接叩けなくするためのトークンが間違っているcheck-by-userへのアクセスがあったので防御しました。**
 **Screen Name:** ${screenName ?? 'No screen name'}
@@ -173,6 +194,8 @@ export class ShadowBanCheckController {
 **Check Repost:** ${checkRepost ?? 'No Check Repost'}
 **IP:** ${ip ?? 'No IP'}
 **Connection IP:** ${connectionIp ?? 'No Connection IP'}
+**Error Codes:**
+${errorCodesList}
         `.trim();
 
         await discordNotifyService.sendMessage(message);
