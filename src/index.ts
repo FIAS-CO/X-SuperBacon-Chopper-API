@@ -261,7 +261,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
   }
 })
 
-app.post('/api/check-by-user', rateLimit, ShadowBanCheckController.checkByUser);
+app.post('/api/checks-by-user', rateLimit, ShadowBanCheckController.checkByUser);
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
