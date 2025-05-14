@@ -20,6 +20,7 @@ import { Log } from './util/Log'
 import { discordNotifyService } from './service/DiscordNotifyService'
 import { ShadowBanCheckController } from './controller/ShadowBanCheckController'
 import { rateLimit } from './middleware/RateLimit'
+import { IpAccessControlController } from './controller/IpAccessControlController'
 
 type Bindings = {}
 
@@ -357,6 +358,13 @@ app.get('/api/get-auth-tokens', async (c) => {
     }, 500);
   }
 });
+
+app.get('/api/ip-access-control/blacklist', IpAccessControlController.getBlacklist);
+app.get('/api/ip-access-control/whitelist', IpAccessControlController.getWhitelist);
+app.post('/api/ip-access-control/blacklist', IpAccessControlController.replaceBlacklist);
+app.post('/api/ip-access-control/whitelist', IpAccessControlController.replaceWhitelist);
+app.get('/api/ip-access-control/get-settings', IpAccessControlController.getAccessSettings);
+app.post('/api/ip-access-control/update-settings', IpAccessControlController.updateAccessSettings);
 
 //---
 //以下テスト用

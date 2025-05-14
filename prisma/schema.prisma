@@ -61,3 +61,17 @@ model AuthToken {
   resetTime DateTime @default(now()) // デフォルトで現在時刻
   updatedAt DateTime @default(now()) // トークン更新日時
 }
+
+model IpAccessControl {
+  id         Int      @id @default(autoincrement())
+  ip         String   @unique
+  type       String   // "blacklist" または "whitelist"
+  createdAt  DateTime @default(now())
+}
+
+model SystemSetting {
+  id                Int      @id @default(autoincrement())
+  key               String   @unique
+  value             String
+  updatedAt         DateTime @updatedAt
+}
