@@ -140,6 +140,52 @@ export class ShadowBanCheckController {
         }
     }
 
+    static async listTest(c: Context) {
+
+        let screenName: string | undefined = undefined;
+
+        try {
+            const data = await c.req.json();
+            // リクエストパラメータの取得と検証
+            screenName = data.screen_name;
+            const checkSearchBan = data.searchban;
+            const checkRepost = data.repost;
+            const encryptedIp = data.key;
+            const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+
+            // 接続元IPを取得（プロキシやロードバランサー経由のリクエストに対応）
+            const connectionIp = c.req.header('x-forwarded-for') ||
+                c.req.raw.headers.get('x-forwarded-for') ||
+                c.req.header('x-real-ip') ||
+                c.env?.remoteAddress ||
+                'unknown';
+
+            if (!screenName || checkSearchBan == null || checkRepost == null || !encryptedIp) {
+                Log.error('パラメータが足りないcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
+                await ShadowBanCheckController.notifyParamlessRequest(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+                return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_PARAMS, 400);
+            }
+
+            if (!ShadowBanCheckController.isValidIpFormat(ip)) {
+                Log.error('IPが不正なcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
+                await ShadowBanCheckController.notifyInvalidIp(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+                return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
+            }
+
+            return c.json({ screenName, ip, checkSearchBan, checkRepost });
+
+        } catch (error) {
+            Log.error('/api/check-by-userの不明なエラー:', error);
+
+            await discordNotifyService.notifyError(
+                error instanceof Error ? error : new Error(String(error)),
+                `API: check-by-user (screenName: ${screenName})`
+            );
+
+            return respondWithError(c, 'Internal server error', 9999, 500);
+        }
+    }
+
     static isValidIpFormat(ip: string): boolean {
         if (!ip) return false;
 
