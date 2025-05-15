@@ -714,6 +714,30 @@ app.get('/api/decrypt-ip', async (c: Context) => {
   }
 });
 
+app.get('/api/encrypt-ip', async (c: Context) => {
+  try {
+    const ip = c.req.query('ip'); // クエリパラメータから取得
+    if (!ip) {
+      return c.json({ error: 'IP parameter is required' }, 400);
+    }
+
+    const encryptedIp = serverDecryption.encrypt(ip);
+    const decryptedIp = serverDecryption.decrypt(encryptedIp);
+
+    return c.json({
+      ip: ip,
+      encryptedIp: encryptedIp,
+      decryptedIp: decryptedIp,
+      correctlyDecrypted: ip === decryptedIp
+    });
+  } catch (error) {
+    return c.json({
+      error: 'Failed to encrypt ip',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
 app.get('/api/testtest', async (c: Context) => {
   try {
     const token = "cda2385aed36d2fbb9985586c290c7434df3ed07";
@@ -752,7 +776,7 @@ app.get('/api/create-transaction-id', async (c: Context) => {
 });
 
 
-app.post('/api/list-test', rateLimit, ShadowBanCheckController.listTest);
+app.get('/api/list-test', ShadowBanCheckController.listTest);
 
 
 const port = 3001

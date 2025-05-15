@@ -145,12 +145,11 @@ export class ShadowBanCheckController {
         let screenName: string | undefined = undefined;
 
         try {
-            const data = await c.req.json();
             // リクエストパラメータの取得と検証
-            screenName = data.screen_name;
-            const checkSearchBan = data.searchban;
-            const checkRepost = data.repost;
-            const encryptedIp = data.key;
+            const screenName = c.req.query('screen_name');
+            const checkSearchBan = c.req.query('searchban') === 'true';
+            const checkRepost = c.req.query('repost') === 'true';
+            const encryptedIp = c.req.query('key');
             const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
 
             // 接続元IPを取得（プロキシやロードバランサー経由のリクエストに対応）
