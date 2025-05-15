@@ -64,7 +64,7 @@ model AuthToken {
 
 model IpAccessControl {
   id         Int      @id @default(autoincrement())
-  ip         String   @unique
+  ip         String
   type       String   // "blacklist" または "whitelist"
   createdAt  DateTime @default(now())
 }
