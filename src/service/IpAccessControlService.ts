@@ -1,7 +1,5 @@
-// src/service/IpAccessControlService.ts
 import prisma from "../db";
 import { Log } from "../util/Log";
-import { discordNotifyService } from "./DiscordNotifyService";
 
 export type IpAccessType = "blacklist" | "whitelist";
 export type AccessSettings = {
@@ -117,7 +115,6 @@ export class IpAccessControlService {
         }
     }
 
-
     /**
      * アクセス許可を判定
      */
@@ -146,7 +143,6 @@ export class IpAccessControlService {
     /**
      * ブラックリストを完全に置き換える
      */
-    // ラッパーメソッド（外部からはこちらを使う）
     async replaceBlacklist(ips: string[]) {
         return this.replaceList("blacklist", ips);
     }
@@ -215,23 +211,6 @@ export class IpAccessControlService {
             throw error;
         }
     }
-}
-
-// IP形式の検証ヘルパー関数
-function isValidIpAddress(ip: string): boolean {
-    // IPv4アドレスのバリデーション
-    const ipv4Pattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-    const match = ip.match(ipv4Pattern);
-
-    if (!match) return false;
-
-    // 各オクテットが0～255の範囲内かチェック
-    for (let i = 1; i <= 4; i++) {
-        const octet = parseInt(match[i]);
-        if (octet < 0 || octet > 255) return false;
-    }
-
-    return true;
 }
 
 // サービスのインスタンスをエクスポート
