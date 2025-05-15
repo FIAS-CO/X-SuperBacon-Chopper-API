@@ -56,8 +56,7 @@ export class IpAccessControlController {
             return c.json({
                 success: true,
                 message: `Blacklist replaced with ${result.count} IPs`,
-                added: result.added,
-                invalid: result.invalid
+                added: result.added
             });
         } catch (error) {
             Log.error('Error replacing blacklist:', error);
@@ -90,8 +89,7 @@ export class IpAccessControlController {
             return c.json({
                 success: true,
                 message: `Whitelist replaced with ${result.count} IPs`,
-                added: result.added,
-                invalid: result.invalid
+                added: result.added
             });
         } catch (error) {
             Log.error('Error replacing whitelist:', error);

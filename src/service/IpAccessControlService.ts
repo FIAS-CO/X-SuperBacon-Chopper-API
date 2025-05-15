@@ -146,101 +146,49 @@ export class IpAccessControlService {
     /**
      * ブラックリストを完全に置き換える
      */
-    async replaceBlacklist(ips: string[]): Promise<{
-        count: number;
-        added: string[];
-        invalid: string[];
-    }> {
-        const added: string[] = [];
-        const invalid: string[] = [];
-
-        try {
-            // トランザクション内で処理
-            await prisma.$transaction(async (prisma) => {
-                // 現在のブラックリストを全て削除
-                await prisma.ipAccessControl.deleteMany({
-                    where: { type: "blacklist" }
-                });
-
-                // 有効なIPのみフィルタリング
-                const validIps = ips.filter(ip => {
-                    const isValid = isValidIpAddress(ip);
-                    if (!isValid) invalid.push(ip);
-                    return isValid;
-                });
-
-                // 新しいブラックリストを一括で追加
-                if (validIps.length > 0) {
-                    await prisma.ipAccessControl.createMany({
-                        data: validIps.map(ip => ({
-                            ip,
-                            type: "blacklist"
-                        }))
-                    });
-                    added.push(...validIps);
-                }
-            });
-
-            Log.info(`Blacklist replaced with ${added.length} IPs`);
-
-            return {
-                count: added.length,
-                added,
-                invalid
-            };
-        } catch (error) {
-            Log.error("Error replacing blacklist:", error);
-            throw error;
-        }
+    // ラッパーメソッド（外部からはこちらを使う）
+    async replaceBlacklist(ips: string[]) {
+        return this.replaceList("blacklist", ips);
     }
 
     /**
      * ホワイトリストを完全に置き換える
      */
-    async replaceWhitelist(ips: string[]): Promise<{
+    async replaceWhitelist(ips: string[]) {
+        return this.replaceList("whitelist", ips);
+    }
+
+    private async replaceList(type: "blacklist" | "whitelist", ips: string[]): Promise<{
         count: number;
         added: string[];
-        invalid: string[];
     }> {
         const added: string[] = [];
-        const invalid: string[] = [];
 
         try {
-            // トランザクション内で処理
             await prisma.$transaction(async (prisma) => {
-                // 現在のホワイトリストを全て削除
                 await prisma.ipAccessControl.deleteMany({
-                    where: { type: "whitelist" }
+                    where: { type }
                 });
 
-                // 有効なIPのみフィルタリング
-                const validIps = ips.filter(ip => {
-                    const isValid = isValidIpAddress(ip);
-                    if (!isValid) invalid.push(ip);
-                    return isValid;
-                });
-
-                // 新しいホワイトリストを一括で追加
-                if (validIps.length > 0) {
+                if (ips.length > 0) {
                     await prisma.ipAccessControl.createMany({
-                        data: validIps.map(ip => ({
+                        data: ips.map(ip => ({
                             ip,
-                            type: "whitelist"
+                            type
                         }))
                     });
-                    added.push(...validIps);
+                    added.push(...ips);
                 }
             });
 
-            Log.info(`Whitelist replaced with ${added.length} IPs`);
+            Log.info(`${type} replaced with ${added.length} IPs`);
 
             return {
                 count: added.length,
-                added,
-                invalid
+                added
             };
         } catch (error) {
-            Log.error("Error replacing whitelist:", error);
+            Log.error(`Error replacing ${type}:`, error);
             throw error;
         }
     }
