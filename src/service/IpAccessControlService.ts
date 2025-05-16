@@ -1,11 +1,12 @@
 import prisma from "../db";
 import { Log } from "../util/Log";
 
-export type IpAccessType = "blacklist" | "whitelist";
-export type AccessSettings = {
-    blacklistEnabled: boolean;
-    whitelistEnabled: boolean;
-};
+export const IP_ACCESS_TYPE = {
+    BLACKLIST: "blacklist",
+    WHITELIST: "whitelist",
+} as const;
+
+export type IpAccessType = typeof IP_ACCESS_TYPE[keyof typeof IP_ACCESS_TYPE];
 
 export class IpAccessControlService {
     /**
@@ -16,7 +17,7 @@ export class IpAccessControlService {
             const entry = await prisma.ipAccessControl.findFirst({
                 where: {
                     ip: ip,
-                    type: "blacklist"
+                    type: IP_ACCESS_TYPE.BLACKLIST,
                 }
             });
             return !!entry;
@@ -34,7 +35,7 @@ export class IpAccessControlService {
             const entry = await prisma.ipAccessControl.findFirst({
                 where: {
                     ip: ip,
-                    type: "whitelist"
+                    type: IP_ACCESS_TYPE.WHITELIST,
                 }
             });
             return !!entry;
@@ -144,17 +145,17 @@ export class IpAccessControlService {
      * ブラックリストを完全に置き換える
      */
     async replaceBlacklist(ips: string[]) {
-        return this.replaceList("blacklist", ips);
+        return this.replaceList(IP_ACCESS_TYPE.BLACKLIST, ips);
     }
 
     /**
      * ホワイトリストを完全に置き換える
      */
     async replaceWhitelist(ips: string[]) {
-        return this.replaceList("whitelist", ips);
+        return this.replaceList(IP_ACCESS_TYPE.WHITELIST, ips);
     }
 
-    private async replaceList(type: "blacklist" | "whitelist", ips: string[]): Promise<{
+    private async replaceList(type: IpAccessType, ips: string[]): Promise<{
         count: number;
         added: string[];
     }> {
