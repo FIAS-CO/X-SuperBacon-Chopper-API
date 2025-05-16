@@ -1,12 +1,6 @@
 import prisma from "../db";
+import { IP_ACCESS_TYPE, IpAccessType } from "../types/Types";
 import { Log } from "../util/Log";
-
-export const IP_ACCESS_TYPE = {
-    BLACKLIST: "blacklist",
-    WHITELIST: "whitelist",
-} as const;
-
-export type IpAccessType = typeof IP_ACCESS_TYPE[keyof typeof IP_ACCESS_TYPE];
 
 export class IpAccessControlService {
     /**

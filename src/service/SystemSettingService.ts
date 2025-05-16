@@ -45,13 +45,13 @@ export class SystemSettingService {
             const settings = await prisma.systemSetting.findMany({
                 where: {
                     key: {
-                        in: ['blacklist_enabled', 'whitelist_enabled']
+                        in: [ACCESS_SETTING_KEYS.BLACKLIST, ACCESS_SETTING_KEYS.WHITELIST]
                     }
                 }
             });
 
-            const blacklistSetting = settings.find(s => s.key === 'blacklist_enabled');
-            const whitelistSetting = settings.find(s => s.key === 'whitelist_enabled');
+            const blacklistSetting = settings.find(s => s.key === ACCESS_SETTING_KEYS.BLACKLIST);
+            const whitelistSetting = settings.find(s => s.key === ACCESS_SETTING_KEYS.WHITELIST);
 
             return {
                 blacklistEnabled: blacklistSetting ? blacklistSetting.value === 'true' : true,
@@ -75,25 +75,25 @@ export class SystemSettingService {
         try {
             await prisma.$transaction([
                 prisma.systemSetting.upsert({
-                    where: { key: 'blacklist_enabled' },
+                    where: { key: ACCESS_SETTING_KEYS.BLACKLIST },
                     update: {
                         value: settings.blacklistEnabled ? 'true' : 'false',
                         updatedAt: new Date()
                     },
                     create: {
-                        key: 'blacklist_enabled',
+                        key: ACCESS_SETTING_KEYS.BLACKLIST,
                         value: settings.blacklistEnabled ? 'true' : 'false',
                         updatedAt: new Date()
                     }
                 }),
                 prisma.systemSetting.upsert({
-                    where: { key: 'whitelist_enabled' },
+                    where: { key: ACCESS_SETTING_KEYS.WHITELIST },
                     update: {
                         value: settings.whitelistEnabled ? 'true' : 'false',
                         updatedAt: new Date()
                     },
                     create: {
-                        key: 'whitelist_enabled',
+                        key: ACCESS_SETTING_KEYS.WHITELIST,
                         value: settings.whitelistEnabled ? 'true' : 'false',
                         updatedAt: new Date()
                     }

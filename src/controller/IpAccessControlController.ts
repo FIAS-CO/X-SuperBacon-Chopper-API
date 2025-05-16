@@ -3,6 +3,7 @@ import { ipAccessControlService } from '../service/IpAccessControlService';
 import { Log } from '../util/Log';
 import { respondWithError } from '../util/Response';
 import { discordNotifyService } from '../service/DiscordNotifyService';
+import { IP_ACCESS_TYPE } from '../types/Types';
 
 export class IpAccessControlController {
     /**
@@ -10,7 +11,7 @@ export class IpAccessControlController {
      */
     static async getBlacklist(c: Context) {
         try {
-            const list = await ipAccessControlService.getList("blacklist");
+            const list = await ipAccessControlService.getList(IP_ACCESS_TYPE.BLACKLIST);
             return c.json(list);
         } catch (error) {
             Log.error('Error getting blacklist:', error);
@@ -23,7 +24,7 @@ export class IpAccessControlController {
      */
     static async getWhitelist(c: Context) {
         try {
-            const list = await ipAccessControlService.getList("whitelist");
+            const list = await ipAccessControlService.getList(IP_ACCESS_TYPE.WHITELIST);
             return c.json(list);
         } catch (error) {
             Log.error('Error getting whitelist:', error);
@@ -52,7 +53,7 @@ export class IpAccessControlController {
 
             const result = await ipAccessControlService.replaceBlacklist(ipList);
 
-            await notifyIpListReplaced("blacklist", result.count);
+            await notifyIpListReplaced(IP_ACCESS_TYPE.BLACKLIST, result.count);
             return c.json({
                 success: true,
                 message: `Blacklist replaced with ${result.count} IPs`,
@@ -85,7 +86,7 @@ export class IpAccessControlController {
 
             const result = await ipAccessControlService.replaceWhitelist(ipList);
 
-            await notifyIpListReplaced("whitelist", result.count);
+            await notifyIpListReplaced(IP_ACCESS_TYPE.WHITELIST, result.count);
             return c.json({
                 success: true,
                 message: `Whitelist replaced with ${result.count} IPs`,
@@ -103,7 +104,7 @@ export class IpAccessControlController {
 async function notifyIpListReplaced(type: string, count: number): Promise<void> {
     const message = `
 🔒 **IPリスト置換**
-**リスト種別:** ${type === "blacklist" ? "ブラックリスト" : "ホワイトリスト"}
+**リスト種別:** ${type === IP_ACCESS_TYPE.BLACKLIST ? "ブラックリスト" : "ホワイトリスト"}
 **登録件数:** ${count}件
 **操作:** 既存リスト削除後に新規登録
         `.trim();
