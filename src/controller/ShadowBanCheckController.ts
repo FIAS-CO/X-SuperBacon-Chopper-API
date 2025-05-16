@@ -6,6 +6,7 @@ import { discordNotifyService } from '../service/DiscordNotifyService';
 import { ErrorCodes } from '../errors/ErrorCodes';
 import { respondWithError } from '../util/Response';
 import { ipAccessControlService } from '../service/IpAccessControlService';
+import { systemSettingService } from '../service/SystemSettingService';
 
 export class ShadowBanCheckController {
     static async checkByUser(c: Context) {
@@ -159,6 +160,7 @@ export class ShadowBanCheckController {
                 c.env?.remoteAddress ||
                 'unknown';
 
+            // TODO checkSearchBanとcheckRepostの値はnullにならないのでは？
             if (!screenName || checkSearchBan == null || checkRepost == null || !encryptedIp) {
                 Log.error('パラメータが足りないcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
                 await ShadowBanCheckController.notifyParamlessRequest(screenName, checkSearchBan, checkRepost, ip, connectionIp);
@@ -171,13 +173,17 @@ export class ShadowBanCheckController {
                 return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
             }
 
-            if (await ipAccessControlService.isBlacklisted(ip)) {
+            const settings = await systemSettingService.getAccessSettings();
+            const blacklistEnabled = settings.blacklistEnabled;
+            const whitelistEnabled = settings.whitelistEnabled;
+
+            if (blacklistEnabled && await ipAccessControlService.isBlacklisted(ip)) {
                 Log.error('ブラックリストに登録されているIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
                 ShadowBanCheckController.notifyBlockByBlacklist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
                 return respondWithError(c, 'Internal server error', 99991, 500); // ブラックリストの存在隠蔽のため、エラーコードは9999
             }
 
-            if (!await ipAccessControlService.isWhitelisted(ip)) {
+            if (whitelistEnabled && !await ipAccessControlService.isWhitelisted(ip)) {
                 Log.error('ホワイトリストに登録されていないIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
                 ShadowBanCheckController.notifyBlockByWhitelist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
                 return respondWithError(c, 'Internal server error', 99992, 500); // ホワイトリストの存在隠蔽のため、エラーコードは9999

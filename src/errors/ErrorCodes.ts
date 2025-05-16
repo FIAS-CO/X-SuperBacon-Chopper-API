@@ -5,6 +5,10 @@ export const ErrorCodes = {
     INVALID_IP_FORMAT: 1004,
     MISSING_CHECK_BY_USER_IP: 1005,
     DUPLICATE_TURNSTILE_TOKEN: 1006,
+
+    FAILED_TO_GET_ACCESS_SETTINGS: 1101,
+    FAILED_TO_UPDATE_ACCESS_SETTINGS: 1102,
+    FAILED_TO_NOTIFY_SETTINGS_CHANGE: 1103,
 } as const;
 
 export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];

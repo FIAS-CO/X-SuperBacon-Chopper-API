@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { ipAccessControlService, AccessSettings } from '../service/IpAccessControlService';
+import { ipAccessControlService } from '../service/IpAccessControlService';
 import { Log } from '../util/Log';
 import { respondWithError } from '../util/Response';
 import { discordNotifyService } from '../service/DiscordNotifyService';
@@ -96,83 +96,7 @@ export class IpAccessControlController {
             return respondWithError(c, 'Internal server error', 9999, 500);
         }
     }
-
-    /**
-     * アクセス制御設定を取得
-     */
-    static async getAccessSettings(c: Context) {
-        try {
-            const settings = await ipAccessControlService.getAccessSettings();
-            return c.json(settings);
-        } catch (error) {
-            Log.error('Error getting access settings:', error);
-            return respondWithError(c, 'Internal server error', 9999, 500);
-        }
-    }
-
-    /**
-     * アクセス制御設定を更新
-     */
-    static async updateAccessSettings(c: Context) {
-        try {
-            const data = await c.req.json();
-            const { blacklistEnabled, whitelistEnabled } = data;
-
-            if (blacklistEnabled === undefined || whitelistEnabled === undefined) {
-                return respondWithError(c, 'Both blacklistEnabled and whitelistEnabled settings are required', 3007, 400);
-            }
-
-            const settings: AccessSettings = {
-                blacklistEnabled: !!blacklistEnabled,
-                whitelistEnabled: !!whitelistEnabled
-            };
-
-            const updatedSettings = await ipAccessControlService.updateAccessSettings(settings);
-
-            // 設定変更を通知
-            await notifyAccessSettingsChange(settings);
-
-            return c.json({
-                success: true,
-                settings: updatedSettings,
-                message: 'Access settings updated successfully'
-            });
-        } catch (error) {
-            Log.error('Error updating access settings:', error);
-            return respondWithError(c, 'Internal server error', 9999, 500);
-        }
-    }
 }
-
-/**
- * 設定変更を通知
- */
-async function notifyAccessSettingsChange(settings: AccessSettings): Promise<void> {
-    const message = `
-🔒 **アクセス制御設定変更**
-**ブラックリスト:** ${settings.blacklistEnabled ? '有効' : '無効'}
-**ホワイトリスト:** ${settings.whitelistEnabled ? '有効' : '無効'}
-**モード説明:** ${getAccessModeDescription(settings)}
-        `.trim();
-
-    await discordNotifyService.sendMessage(message);
-}
-
-/**
- * 現在のモード説明を取得
- */
-function getAccessModeDescription(settings: AccessSettings): string {
-    if (settings.blacklistEnabled && settings.whitelistEnabled) {
-        return "ホワイトリストに登録されたIPのみアクセス可能、ブラックリストに登録されたIPはアクセス不可（ホワイトリスト優先）";
-    } else if (settings.whitelistEnabled) {
-        return "ホワイトリストに登録されたIPのみアクセス可能";
-    } else if (settings.blacklistEnabled) {
-        return "ブラックリストに登録されたIP以外はアクセス可能";
-    } else {
-        return "アクセス制限なし（全てのIPがアクセス可能）";
-    }
-}
-
 /**
  * IPリスト置換を通知
  */
