@@ -14,6 +14,15 @@ Aegisは現在: ${enabled ? '有効' : '無効'}
         await discordNotifyService.sendMessage(message);
     }
 
+    static async notifyAegisTriggeredByAccessSpike(): Promise<void> {
+        const message = `
+    🚨 **Aegisによりアクセス制御が有効化されました**
+    30分で500アクセスがあったのでブラックリストとホワイトリストを有効にしました。
+        `.trim();
+
+        await discordNotifyService.sendMessage(message);
+    }
+
     static async notifyAccessSettingsChange(settings: AccessSettings): Promise<void> {
         const message = `
 🔒 **アクセス制御設定変更**

@@ -22,6 +22,7 @@ import { ShadowBanCheckController } from './controller/ShadowBanCheckController'
 import { rateLimit } from './middleware/RateLimit'
 import { IpAccessControlController } from './controller/IpAccessControlController'
 import { SystemSettingController } from './controller/SystemSettingController'
+import { aegisMonitor } from './middleware/AegisMonitor'
 
 type Bindings = {}
 
@@ -785,7 +786,7 @@ app.get('/api/create-transaction-id', async (c: Context) => {
 });
 
 
-app.get('/api/list-test', ShadowBanCheckController.listTest);
+app.get('/api/list-test', aegisMonitor, ShadowBanCheckController.listTest);
 
 
 const port = 3001

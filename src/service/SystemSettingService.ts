@@ -136,6 +136,18 @@ export class SystemSettingService {
     }
 
     /**
+     * ブラックリストとホワイトリストを有効にする
+     * @returns
+     */
+    async enableBlackAndWithitelist(): Promise<AccessSettings> {
+        const settings: AccessSettings = {
+            blacklistEnabled: true,
+            whitelistEnabled: true
+        };
+        return await this.updateAccessSettings(settings);
+    }
+
+    /**
      * アクセス制御設定を更新
      */
     async updateAccessSettings(settings: AccessSettings): Promise<AccessSettings> {
