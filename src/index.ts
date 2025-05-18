@@ -365,11 +365,15 @@ app.get('/api/ip-access-control/whitelist', IpAccessControlController.getWhiteli
 app.post('/api/ip-access-control/blacklist', IpAccessControlController.replaceBlacklist);
 app.post('/api/ip-access-control/whitelist', IpAccessControlController.replaceWhitelist);
 
-app.get('/api/system-control/get-settings', SystemSettingController.getAccessSettings);
+app.get('/api/system-control/get-settings', SystemSettingController.getSystemSettings);
+
 app.get('/api/system-control/enable-blacklist', SystemSettingController.enableBlacklist);
 app.get('/api/system-control/disable-blacklist', SystemSettingController.disableBlacklist);
 app.get('/api/system-control/enable-whitelist', SystemSettingController.enableWhitelist);
 app.get('/api/system-control/disable-whitelist', SystemSettingController.disableWhitelist);
+
+app.get('/api/system-control/enable-aegis', SystemSettingController.enableAegis);
+app.get('/api/system-control/disable-aegis', SystemSettingController.disableAegis);
 
 //---
 //以下テスト用

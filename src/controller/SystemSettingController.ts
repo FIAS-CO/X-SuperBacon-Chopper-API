@@ -6,17 +6,16 @@ import { respondWithError } from "../util/Response";
 import { ErrorCodes } from "../errors/ErrorCodes";
 
 export class SystemSettingController {
-
     /**
-     * アクセス制御設定を取得
+     * システム設定を取得
      */
-    static async getAccessSettings(c: Context) {
+    static async getSystemSettings(c: Context) {
         try {
-            const settings = await systemSettingService.getAccessSettings();
+            const settings = await systemSettingService.getAllSettings();
             return c.json(settings);
         } catch (error) {
-            Log.error('Error getting access settings:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_GET_ACCESS_SETTINGS, 500);
+            Log.error('Error getting system settings:', error);
+            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_GET_SYSTEM_SETTINGS, 500);
         }
     }
 
@@ -39,7 +38,7 @@ export class SystemSettingController {
             });
         } catch (error) {
             Log.error('Error enabling blacklist:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_ACCESS_SETTINGS, 500);
+            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
     }
 
@@ -62,7 +61,7 @@ export class SystemSettingController {
             });
         } catch (error) {
             Log.error('Error disabling blacklist:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_ACCESS_SETTINGS, 500);
+            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
     }
 
@@ -85,7 +84,7 @@ export class SystemSettingController {
             });
         } catch (error) {
             Log.error('Error enabling whitelist:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_ACCESS_SETTINGS, 500);
+            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
     }
 
@@ -108,9 +107,54 @@ export class SystemSettingController {
             });
         } catch (error) {
             Log.error('Error disabling whitelist:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_ACCESS_SETTINGS, 500);
+            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
     }
+
+    /**
+     * Aegisを有効にする
+     */
+    static async enableAegis(c: Context) {
+        try {
+            await systemSettingService.updateAegisEnabled(true);
+
+            await notifyAegisStatusChange(true);
+            return c.json({
+                success: true,
+                message: 'Aegis enabled successfully'
+            });
+        } catch (error) {
+            Log.error('Error enabling aegis:', error);
+            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
+        }
+    }
+
+    /**
+     * Aegisを無効にする
+     */
+    static async disableAegis(c: Context) {
+        try {
+            await systemSettingService.updateAegisEnabled(false);
+
+            await notifyAegisStatusChange(false);
+            return c.json({
+                success: true,
+                message: 'Aegis disabled successfully'
+            });
+        } catch (error) {
+            Log.error('Error disabling aegis:', error);
+            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
+        }
+    }
+}
+
+async function notifyAegisStatusChange(enabled: boolean): Promise<void> {
+    const message = `
+🛡️ **Aegisステータス変更**
+Aegisは現在: ${enabled ? '有効' : '無効'}
+    `.trim();
+
+    await discordNotifyService.sendMessage(message);
 }
 
 async function notifyAccessSettingsChange(settings: AccessSettings): Promise<void> {
