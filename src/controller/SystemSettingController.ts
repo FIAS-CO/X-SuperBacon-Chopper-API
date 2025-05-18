@@ -24,10 +24,7 @@ export class SystemSettingController {
      */
     static async enableBlacklist(c: Context) {
         try {
-            const settings = await systemSettingService.getAccessSettings();
-            settings.blacklistEnabled = true;
-
-            const updatedSettings = await systemSettingService.updateAccessSettings(settings);
+            const updatedSettings = await systemSettingService.enableBlacklist();
 
             await SystemSettingsUtil.notifyAccessSettingsChange(updatedSettings);
 
@@ -47,12 +44,9 @@ export class SystemSettingController {
      */
     static async disableBlacklist(c: Context) {
         try {
-            const settings = await systemSettingService.getAccessSettings();
-            settings.blacklistEnabled = false;
+            const updatedSettings = await systemSettingService.disableBlacklist();
 
-            const updatedSettings = await systemSettingService.updateAccessSettings(settings);
-
-            await SystemSettingsUtil.notifyAccessSettingsChange(settings);
+            await SystemSettingsUtil.notifyAccessSettingsChange(updatedSettings);
 
             return c.json({
                 success: true,
@@ -70,12 +64,9 @@ export class SystemSettingController {
      */
     static async enableWhitelist(c: Context) {
         try {
-            const settings = await systemSettingService.getAccessSettings();
-            settings.whitelistEnabled = true;
+            const updatedSettings = await systemSettingService.enableWhitelist();
 
-            const updatedSettings = await systemSettingService.updateAccessSettings(settings);
-
-            await SystemSettingsUtil.notifyAccessSettingsChange(settings);
+            await SystemSettingsUtil.notifyAccessSettingsChange(updatedSettings);
 
             return c.json({
                 success: true,
@@ -93,12 +84,9 @@ export class SystemSettingController {
      */
     static async disableWhitelist(c: Context) {
         try {
-            const settings = await systemSettingService.getAccessSettings();
-            settings.whitelistEnabled = false;
+            const updatedSettings = await systemSettingService.disableWhitelist();
 
-            const updatedSettings = await systemSettingService.updateAccessSettings(settings);
-
-            await SystemSettingsUtil.notifyAccessSettingsChange(settings);
+            await SystemSettingsUtil.notifyAccessSettingsChange(updatedSettings);
 
             return c.json({
                 success: true,

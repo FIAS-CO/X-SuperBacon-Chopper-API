@@ -83,6 +83,57 @@ export class SystemSettingService {
         }
     }
 
+    /**
+     * ブラックリストを有効にする
+     * @returns 
+     */
+    async enableBlacklist(): Promise<AccessSettings> {
+        const settings = await this.getAccessSettings();
+        settings.blacklistEnabled = true;
+
+        const updatedSettings = await this.updateAccessSettings(settings);
+
+        return updatedSettings;
+    }
+
+    /**
+     * ブラックリストを無効にする
+     * @returns 
+     */
+    async disableBlacklist(): Promise<AccessSettings> {
+        const settings = await this.getAccessSettings();
+        settings.blacklistEnabled = false;
+
+        const updatedSettings = await this.updateAccessSettings(settings);
+
+        return updatedSettings;
+    }
+
+    /**
+     * ホワイトリストを有効にする
+     * @returns 
+     */
+    async enableWhitelist(): Promise<AccessSettings> {
+        const settings = await this.getAccessSettings();
+        settings.whitelistEnabled = true;
+
+        const updatedSettings = await this.updateAccessSettings(settings);
+
+        return updatedSettings;
+    }
+
+    /**
+     * ホワイトリストを無効にする
+     * @returns 
+     */
+    async disableWhitelist(): Promise<AccessSettings> {
+        const settings = await this.getAccessSettings();
+        settings.whitelistEnabled = false;
+
+        const updatedSettings = await this.updateAccessSettings(settings);
+
+        return updatedSettings;
+    }
 
     /**
      * アクセス制御設定を更新
