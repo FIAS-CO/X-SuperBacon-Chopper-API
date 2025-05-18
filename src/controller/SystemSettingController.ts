@@ -1,9 +1,9 @@
 import { Context } from "vm";
-import { discordNotifyService } from "../service/DiscordNotifyService";
-import { AccessSettings, systemSettingService } from "../service/SystemSettingService";
+import { systemSettingService } from "../service/SystemSettingService";
 import { Log } from "../util/Log";
 import { respondWithError } from "../util/Response";
 import { ErrorCodes } from "../errors/ErrorCodes";
+import { SystemSettingsUtil } from "../util/SystemSettingsUtil";
 
 export class SystemSettingController {
     /**
@@ -29,7 +29,7 @@ export class SystemSettingController {
 
             const updatedSettings = await systemSettingService.updateAccessSettings(settings);
 
-            await notifyAccessSettingsChange(settings);
+            await SystemSettingsUtil.notifyAccessSettingsChange(updatedSettings);
 
             return c.json({
                 success: true,
@@ -52,7 +52,7 @@ export class SystemSettingController {
 
             const updatedSettings = await systemSettingService.updateAccessSettings(settings);
 
-            await notifyAccessSettingsChange(settings);
+            await SystemSettingsUtil.notifyAccessSettingsChange(settings);
 
             return c.json({
                 success: true,
@@ -75,7 +75,7 @@ export class SystemSettingController {
 
             const updatedSettings = await systemSettingService.updateAccessSettings(settings);
 
-            await notifyAccessSettingsChange(settings);
+            await SystemSettingsUtil.notifyAccessSettingsChange(settings);
 
             return c.json({
                 success: true,
@@ -98,7 +98,7 @@ export class SystemSettingController {
 
             const updatedSettings = await systemSettingService.updateAccessSettings(settings);
 
-            await notifyAccessSettingsChange(settings);
+            await SystemSettingsUtil.notifyAccessSettingsChange(settings);
 
             return c.json({
                 success: true,
@@ -118,7 +118,7 @@ export class SystemSettingController {
         try {
             await systemSettingService.updateAegisEnabled(true);
 
-            await notifyAegisStatusChange(true);
+            await SystemSettingsUtil.notifyAegisStatusChange(true);
             return c.json({
                 success: true,
                 message: 'Aegis enabled successfully'
@@ -136,7 +136,7 @@ export class SystemSettingController {
         try {
             await systemSettingService.updateAegisEnabled(false);
 
-            await notifyAegisStatusChange(false);
+            await SystemSettingsUtil.notifyAegisStatusChange(false);
             return c.json({
                 success: true,
                 message: 'Aegis disabled successfully'
@@ -145,41 +145,6 @@ export class SystemSettingController {
             Log.error('Error disabling aegis:', error);
             return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
-    }
-}
-
-async function notifyAegisStatusChange(enabled: boolean): Promise<void> {
-    const message = `
-🛡️ **Aegisステータス変更**
-Aegisは現在: ${enabled ? '有効' : '無効'}
-    `.trim();
-
-    await discordNotifyService.sendMessage(message);
-}
-
-async function notifyAccessSettingsChange(settings: AccessSettings): Promise<void> {
-    const message = `
-🔒 **アクセス制御設定変更**
-**ブラックリスト:** ${settings.blacklistEnabled ? '有効' : '無効'}
-**ホワイトリスト:** ${settings.whitelistEnabled ? '有効' : '無効'}
-**モード説明:** ${getAccessModeDescription(settings)}
-        `.trim();
-
-    await discordNotifyService.sendMessage(message);
-}
-
-/**
- * 現在のモード説明を取得
- */
-function getAccessModeDescription(settings: AccessSettings): string {
-    if (settings.blacklistEnabled && settings.whitelistEnabled) {
-        return "ブラックリストに登録されておらず、ホワイトリストに登録されたIPのみアクセス可能(ブラックリスト優先)";
-    } else if (settings.whitelistEnabled) {
-        return "ホワイトリストに登録されたIPのみアクセス可能";
-    } else if (settings.blacklistEnabled) {
-        return "ブラックリストに登録されたIP以外はアクセス可能";
-    } else {
-        return "アクセス制限なし（全てのIPがアクセス可能）";
     }
 }
 

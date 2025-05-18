@@ -12,3 +12,8 @@ export const IP_ACCESS_TYPE = {
 } as const;
 
 export type IpAccessType = typeof IP_ACCESS_TYPE[keyof typeof IP_ACCESS_TYPE];
+
+export type AccessSettings = {
+    blacklistEnabled: boolean;
+    whitelistEnabled: boolean;
+};

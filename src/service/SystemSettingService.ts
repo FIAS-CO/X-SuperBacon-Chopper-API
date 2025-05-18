@@ -1,10 +1,7 @@
 import prisma from "../db";
+import { AccessSettings } from "../types/Types";
 import { Log } from "../util/Log";
 
-export type AccessSettings = {
-    blacklistEnabled: boolean;
-    whitelistEnabled: boolean;
-};
 const ACCESS_SETTING_KEYS = {
     BLACKLIST: 'blacklist_enabled',
     WHITELIST: 'whitelist_enabled'
