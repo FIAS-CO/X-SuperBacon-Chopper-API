@@ -1,7 +1,7 @@
 import { Context } from "vm";
 import { systemSettingService } from "../service/SystemSettingService";
 import { Log } from "../util/Log";
-import { respondWithError } from "../util/Response";
+import { respondWithDetailedError } from "../util/Response";
 import { ErrorCodes } from "../errors/ErrorCodes";
 import { SystemSettingsUtil } from "../util/SystemSettingsUtil";
 
@@ -15,7 +15,7 @@ export class SystemSettingController {
             return c.json(settings);
         } catch (error) {
             Log.error('Error getting system settings:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_GET_SYSTEM_SETTINGS, 500);
+            return respondWithDetailedError(c, error as Error, ErrorCodes.FAILED_TO_GET_SYSTEM_SETTINGS, 500);
         }
     }
 
@@ -35,7 +35,7 @@ export class SystemSettingController {
             });
         } catch (error) {
             Log.error('Error enabling blacklist:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
+            return respondWithDetailedError(c, error as Error, ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
     }
 
@@ -55,7 +55,7 @@ export class SystemSettingController {
             });
         } catch (error) {
             Log.error('Error disabling blacklist:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
+            return respondWithDetailedError(c, error as Error, ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
     }
 
@@ -75,7 +75,7 @@ export class SystemSettingController {
             });
         } catch (error) {
             Log.error('Error enabling whitelist:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
+            return respondWithDetailedError(c, error as Error, ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
     }
 
@@ -95,7 +95,7 @@ export class SystemSettingController {
             });
         } catch (error) {
             Log.error('Error disabling whitelist:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
+            return respondWithDetailedError(c, error as Error, ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
     }
 
@@ -113,7 +113,7 @@ export class SystemSettingController {
             });
         } catch (error) {
             Log.error('Error enabling aegis:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
+            return respondWithDetailedError(c, error as Error, ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
     }
 
@@ -131,7 +131,7 @@ export class SystemSettingController {
             });
         } catch (error) {
             Log.error('Error disabling aegis:', error);
-            return respondWithError(c, 'Internal server error', ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
+            return respondWithDetailedError(c, error as Error, ErrorCodes.FAILED_TO_UPDATE_SYSTEM_SETTINGS, 500);
         }
     }
 }

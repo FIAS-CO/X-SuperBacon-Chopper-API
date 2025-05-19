@@ -1,7 +1,7 @@
 import { Context } from 'hono';
 import { ipAccessControlService } from '../service/IpAccessControlService';
 import { Log } from '../util/Log';
-import { respondWithError } from '../util/Response';
+import { respondWithDetailedError } from '../util/Response';
 import { discordNotifyService } from '../service/DiscordNotifyService';
 import { IP_ACCESS_TYPE } from '../types/Types';
 
@@ -15,7 +15,7 @@ export class IpAccessControlController {
             return c.json(list);
         } catch (error) {
             Log.error('Error getting blacklist:', error);
-            return respondWithError(c, 'Internal server error', 9999, 500);
+            return respondWithDetailedError(c, error as Error, 9999, 500);
         }
     }
 
@@ -28,7 +28,7 @@ export class IpAccessControlController {
             return c.json(list);
         } catch (error) {
             Log.error('Error getting whitelist:', error);
-            return respondWithError(c, 'Internal server error', 9999, 500);
+            return respondWithDetailedError(c, error as Error, 9999, 500);
         }
     }
 
@@ -41,14 +41,14 @@ export class IpAccessControlController {
             const { ips } = data;
 
             if (!ips) {
-                return respondWithError(c, 'IPs are required', 3002, 400);
+                return respondWithDetailedError(c, new Error('IPs are required'), 3002, 400);
             }
 
             // 改行で区切られたIPリストを配列に変換
             const ipList = ips.split(/\r?\n/).map((ip: string) => ip.trim()).filter((ip: string) => ip);
 
             if (ipList.length === 0) {
-                return respondWithError(c, 'No valid IPs provided', 3005, 400);
+                return respondWithDetailedError(c, new Error('No valid IPs provided'), 3005, 400);
             }
 
             const result = await ipAccessControlService.replaceBlacklist(ipList);
@@ -61,7 +61,7 @@ export class IpAccessControlController {
             });
         } catch (error) {
             Log.error('Error replacing blacklist:', error);
-            return respondWithError(c, 'Internal server error', 9999, 500);
+            return respondWithDetailedError(c, error as Error, 9999, 500);
         }
     }
 
@@ -74,14 +74,14 @@ export class IpAccessControlController {
             const { ips } = data;
 
             if (!ips) {
-                return respondWithError(c, 'IPs are required', 3002, 400);
+                return respondWithDetailedError(c, new Error('IPs are required'), 3002, 400);
             }
 
             // 改行で区切られたIPリストを配列に変換
             const ipList = ips.split(/\r?\n/).map((ip: string) => ip.trim()).filter((ip: string) => ip);
 
             if (ipList.length === 0) {
-                return respondWithError(c, 'No valid IPs provided', 3005, 400);
+                return respondWithDetailedError(c, new Error('No valid IPs provided'), 3005, 400);
             }
 
             const result = await ipAccessControlService.replaceWhitelist(ipList);
@@ -94,10 +94,11 @@ export class IpAccessControlController {
             });
         } catch (error) {
             Log.error('Error replacing whitelist:', error);
-            return respondWithError(c, 'Internal server error', 9999, 500);
+            return respondWithDetailedError(c, error as Error, 9999, 500);
         }
     }
 }
+
 /**
  * IPリスト置換を通知
  */

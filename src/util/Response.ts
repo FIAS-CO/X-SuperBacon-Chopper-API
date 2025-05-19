@@ -10,3 +10,20 @@ export function respondWithError(c: Context, message: string, errorCode: number,
         httpStatus as StatusCode
     );
 }
+
+export function respondWithDetailedError(
+    c: Context,
+    err: Error,
+    errorCode: number,
+    httpStatus: StatusCode = 500
+) {
+    return c.json(
+        {
+            message: err.message,
+            code: errorCode,
+            name: err.name,
+            stack: err.stack,
+        },
+        httpStatus
+    );
+}
