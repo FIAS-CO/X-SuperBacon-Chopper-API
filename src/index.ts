@@ -787,10 +787,6 @@ app.get('/api/create-transaction-id', async (c: Context) => {
   })
 });
 
-
-app.get('/api/list-test', aegisMonitor, ShadowBanCheckController.listTest);
-
-
 const port = 3001
 Log.info(`Server is running on port ${port}`)
 
