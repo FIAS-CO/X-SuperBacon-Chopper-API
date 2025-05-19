@@ -27,33 +27,40 @@ export const PowService = {
         return { challenge, difficulty: DIFFICULTY }
     },
 
-    async verifyAsync(challenge: string, nonce: string): Promise<boolean> {
-        Log.debug(challenge, nonce)
-        if (
-            typeof challenge !== 'string' || challenge.length === 0 ||
-            typeof nonce !== 'string' || nonce.length === 0
-        ) {
-            return false
+    checkChallengeFormat(challenge: string, nonce: string): boolean {
+        return (
+            typeof challenge === 'string' &&
+            challenge.trim() !== '' &&
+            typeof nonce === 'string' &&
+            nonce.trim() !== ''
+        );
+    },
+
+    checkChallengeValid(challenge: string): boolean {
+        const createdAt = store.get(challenge);
+        if (typeof createdAt !== 'number') {
+            return false; // challengeが存在しない
         }
-
-        const createdAt = store.get(challenge)
-        if (!createdAt || Date.now() - createdAt > EXPIRY_MS) {
-            return false
+        if (Date.now() - createdAt > EXPIRY_MS) {
+            return false; // challengeが期限切れ
         }
+        return true;
+    },
 
-        const encoder = new TextEncoder()
-        const data = encoder.encode(challenge + nonce)
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    async verifyChallengeAndNonce(challenge: string, nonce: string): Promise<boolean> {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(challenge + nonce);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 
-        const hashArray = Array.from(new Uint8Array(hashBuffer))
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-        const prefix = '0'.repeat(DIFFICULTY)
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        const prefix = '0'.repeat(DIFFICULTY);
 
-        const isValid = hashHex.startsWith(prefix)
+        const isValid = hashHex.startsWith(prefix);
         if (isValid) {
-            store.delete(challenge)
+            store.delete(challenge);
         }
 
-        return isValid
-    }
+        return isValid;
+    },
 }
