@@ -20,6 +20,12 @@ import { Log } from './util/Log'
 import { discordNotifyService } from './service/DiscordNotifyService'
 import { ShadowBanCheckController } from './controller/ShadowBanCheckController'
 import { rateLimit } from './middleware/RateLimit'
+import { IpAccessControlController } from './controller/IpAccessControlController'
+import { SystemSettingController } from './controller/SystemSettingController'
+import { aegisMonitor } from './middleware/AegisMonitor'
+import { checkByUserParamExists } from './middleware/CheckByUserParamExists'
+import { PowService } from './service/PowService'
+import { pow } from './middleware/ProofOfWork'
 
 type Bindings = {}
 
@@ -262,6 +268,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
 })
 
 app.post('/api/checks-byuser', rateLimit, ShadowBanCheckController.checkByUser);
+app.post('/api/check-by-user-inner', aegisMonitor, checkByUserParamExists, rateLimit, pow, ShadowBanCheckController.checkByUserInner);
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
@@ -357,6 +364,26 @@ app.get('/api/get-auth-tokens', async (c) => {
     }, 500);
   }
 });
+
+app.get('/api/ip-access-control/blacklist', IpAccessControlController.getBlacklist);
+app.get('/api/ip-access-control/whitelist', IpAccessControlController.getWhitelist);
+app.post('/api/ip-access-control/blacklist', IpAccessControlController.replaceBlacklist);
+app.post('/api/ip-access-control/whitelist', IpAccessControlController.replaceWhitelist);
+
+app.get('/api/system-control/get-settings', SystemSettingController.getSystemSettings);
+
+app.get('/api/system-control/enable-blacklist', SystemSettingController.enableBlacklist);
+app.get('/api/system-control/disable-blacklist', SystemSettingController.disableBlacklist);
+app.get('/api/system-control/enable-whitelist', SystemSettingController.enableWhitelist);
+app.get('/api/system-control/disable-whitelist', SystemSettingController.disableWhitelist);
+
+app.get('/api/system-control/enable-aegis', SystemSettingController.enableAegis);
+app.get('/api/system-control/disable-aegis', SystemSettingController.disableAegis);
+
+app.get('/api/pow-challenge', async (c) => {
+  const data = PowService.generateChallenge()
+  return c.json(data)
+})
 
 //---
 //以下テスト用
@@ -701,6 +728,30 @@ app.get('/api/decrypt-ip', async (c: Context) => {
   } catch (error) {
     return c.json({
       error: 'Failed to decrypt ip',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
+app.get('/api/encrypt-ip', async (c: Context) => {
+  try {
+    const ip = c.req.query('ip'); // クエリパラメータから取得
+    if (!ip) {
+      return c.json({ error: 'IP parameter is required' }, 400);
+    }
+
+    const encryptedIp = serverDecryption.encrypt(ip);
+    const decryptedIp = serverDecryption.decrypt(encryptedIp);
+
+    return c.json({
+      ip: ip,
+      encryptedIp: encryptedIp,
+      decryptedIp: decryptedIp,
+      correctlyDecrypted: ip === decryptedIp
+    });
+  } catch (error) {
+    return c.json({
+      error: 'Failed to encrypt ip',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }

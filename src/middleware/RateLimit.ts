@@ -102,5 +102,5 @@ async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Sh
 }
 
 function rateLimitExceededResponse(c: Context): Response {
-    return respondWithError(c, 'API not available.', 9999, 429);
+    return respondWithError(c, 'Internal server error', 9999, 500);
 }

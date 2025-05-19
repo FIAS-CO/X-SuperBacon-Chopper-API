@@ -24,15 +24,23 @@ export class Log {
     }
 
     static debug(message: string, ...args: any[]): void {
-        console.debug(`[${this.getJSTTimestamp()}] [DEBUG] ${message}`, ...args);
+        if (this.isDev()) {
+            console.debug(`[${this.getJSTTimestamp()}] [DEBUG] ${message}`, ...args);
+        }
     }
 
     static trace(message: string, ...args: any[]): void {
-        console.trace(`[${this.getJSTTimestamp()}] [TRACE] ${message}`, ...args);
+        if (this.isDev()) {
+            console.trace(`[${this.getJSTTimestamp()}] [TRACE] ${message}`, ...args);
+        }
     }
 
     static object(label: string, obj: any): void {
         console.log(`[${this.getJSTTimestamp()}] [INFO] ${label}:`,
             JSON.stringify(obj, null, 2));
+    }
+
+    private static isDev(): boolean {
+        return process.env.NODE_ENV === 'development';
     }
 }

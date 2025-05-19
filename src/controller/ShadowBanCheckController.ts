@@ -3,9 +3,11 @@ import { serverDecryption } from '../util/ServerDecryption';
 import { shadowBanCheckService } from '../service/ShadowBanCheckService';
 import { Log } from '../util/Log';
 import { discordNotifyService } from '../service/DiscordNotifyService';
-import { TurnstileValidator } from '../util/TurnstileValidator';
 import { ErrorCodes } from '../errors/ErrorCodes';
 import { respondWithError } from '../util/Response';
+import { ipAccessControlService } from '../service/IpAccessControlService';
+import { systemSettingService } from '../service/SystemSettingService';
+import { DelayUtil } from '../util/DelayUtil';
 
 export class ShadowBanCheckController {
     static async checkByUser(c: Context) {
@@ -100,19 +102,47 @@ export class ShadowBanCheckController {
     }
 
     static async checkByUserInner(c: Context) {
-        let screenName: string | undefined = undefined;
+        const data = await c.req.json();
+        const screenName = data.screen_name;
 
         try {
-            screenName = c.req.query('screen_name');
-            if (!screenName) {
-                return c.json({ error: 'screen_name parameter is required' }, 400);
+            // リクエストパラメータの取得(存在するかの検証はmiddlewareで行う)
+            const checkSearchBan = data.searchban;
+            const checkRepost = data.repost;
+            const encryptedIp = data.key;
+            const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+
+            // 接続元IPを取得（プロキシやロードバランサー経由のリクエストに対応）
+            const connectionIp = c.req.header('x-forwarded-for') ||
+                c.req.raw.headers.get('x-forwarded-for') ||
+                c.req.header('x-real-ip') ||
+                c.env?.remoteAddress ||
+                'unknown';
+
+            if (!ShadowBanCheckController.isValidIpFormat(ip)) {
+                Log.error('IPが不正なcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
+                await ShadowBanCheckController.notifyInvalidIp(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+                await DelayUtil.randomDelay();
+                return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
             }
 
-            const checkSearchBan = c.req.query('searchban') === 'true';
-            const checkRepost = c.req.query('repost') === 'true';
+            const settings = await systemSettingService.getAccessSettings();
+            const blacklistEnabled = settings.blacklistEnabled;
+            const whitelistEnabled = settings.whitelistEnabled;
 
-            const encryptedIp = c.req.query('key');
-            const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+            if (blacklistEnabled && await ipAccessControlService.isBlacklisted(ip)) {
+                Log.error('ブラックリストに登録されているIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
+                ShadowBanCheckController.notifyBlockByBlacklist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+                await DelayUtil.randomDelay();
+                return respondWithError(c, 'Internal server error', 9999, 500); // ブラックリストの存在隠蔽のため、エラーコードは9999
+            }
+
+            if (whitelistEnabled && !await ipAccessControlService.isWhitelisted(ip)) {
+                Log.error('ホワイトリストに登録されていないIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
+                ShadowBanCheckController.notifyBlockByWhitelist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+                await DelayUtil.randomDelay();
+                return respondWithError(c, 'Internal server error', 9999, 500); // ホワイトリストの存在隠蔽のため、エラーコードは9999
+            }
 
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
@@ -122,21 +152,16 @@ export class ShadowBanCheckController {
             );
 
             return c.json(result);
-
         } catch (error) {
-            // エラーハンドリング
             Log.error('/api/check-by-userの不明なエラー:', error);
 
-            // Discordに通知を送信
             await discordNotifyService.notifyError(
                 error instanceof Error ? error : new Error(String(error)),
                 `API: check-by-user (screenName: ${screenName})`
             );
+            await DelayUtil.randomDelay();
 
-            return c.json({
-                error: 'Internal server error',
-                details: error instanceof Error ? error.message : 'Unknown error'
-            }, 500);
+            return respondWithError(c, 'Internal server error', 9999, 500);
         }
     }
 
@@ -159,19 +184,6 @@ export class ShadowBanCheckController {
         }
 
         return true;
-    }
-
-    static async notifyParamlessRequest(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
-        const message = `
-🚨 **パラーメータの足りないcheck-by-userへのアクセスがあったので防御しました。**
-**Screen Name:** ${screenName ?? 'No screen name'}
-**Check Search Ban:** ${checkSearchBan ?? 'No Check Search Ban'}   
-**Check Repost:** ${checkRepost ?? 'No Check Repost'}
-**IP:** ${ip ?? 'No IP'}
-**Connection IP:** ${connectionIp ?? 'No Connection IP'}
-        `.trim();
-
-        await discordNotifyService.sendMessage(message);
     }
 
     static async notifyInvalidIp(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
@@ -218,6 +230,39 @@ export class ShadowBanCheckController {
 **Connection IP:** ${connectionIp ?? 'No Connection IP'}
 **Error Codes:**
 ${errorCodesList}
+        `.trim();
+
+        await discordNotifyService.sendMessage(message);
+    }
+
+    static async notifyBlockByBlacklist(screenName: string, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
+        await ShadowBanCheckController.notifyAccessIssue('blacklist', screenName, checkSearchBan, checkRepost, ip, connectionIp);
+    }
+
+    static async notifyBlockByWhitelist(screenName: string, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
+        await ShadowBanCheckController.notifyAccessIssue('whitelist', screenName, checkSearchBan, checkRepost, ip, connectionIp);
+    }
+
+    static async notifyAccessIssue(
+        issueType: 'blacklist' | 'whitelist',
+        screenName: string,
+        checkSearchBan: boolean,
+        checkRepost: boolean,
+        ip: string,
+        connectionIp: string
+    ): Promise<void> {
+        const issueMessages: Record<string, string> = {
+            blacklist: 'ブラックリストに登録されているIPからのアクセスがありました。',
+            whitelist: 'ホワイトリストに登録されていないIPからのアクセスがありました。'
+        };
+
+        const message = `
+🚨 **${issueMessages[issueType]}**
+**Screen Name:** ${screenName}
+**Check Search Ban:** ${checkSearchBan}
+**Check Repost:** ${checkRepost}
+**IP:** ${ip}
+**Connection IP:** ${connectionIp}
         `.trim();
 
         await discordNotifyService.sendMessage(message);
