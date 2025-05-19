@@ -1,3 +1,5 @@
+import { Log } from "../util/Log"
+
 const EXPIRY_MS = 60 * 1000 // 1分
 const DIFFICULTY = 3
 
@@ -26,6 +28,7 @@ export const PowService = {
     },
 
     async verifyAsync(challenge: string, nonce: string): Promise<boolean> {
+        Log.debug(challenge, nonce)
         if (
             typeof challenge !== 'string' || challenge.length === 0 ||
             typeof nonce !== 'string' || nonce.length === 0
