@@ -102,13 +102,11 @@ export class ShadowBanCheckController {
     }
 
     static async checkByUserInner(c: Context) {
-        let screenName: string | undefined = undefined;
+        const data = await c.req.json();
+        const screenName = data.screen_name;
 
         try {
-            // リクエストパラメータの取得と検証
-            const data = await c.req.json();
-            // リクエストパラメータの取得と検証
-            screenName = data.screen_name;
+            // リクエストパラメータの取得(存在するかの検証はmiddlewareで行う)
             const checkSearchBan = data.searchban;
             const checkRepost = data.repost;
             const encryptedIp = data.key;
@@ -120,14 +118,6 @@ export class ShadowBanCheckController {
                 c.req.header('x-real-ip') ||
                 c.env?.remoteAddress ||
                 'unknown';
-
-            // TODO checkSearchBanとcheckRepostの値はnullにならないのでは？
-            if (!screenName || checkSearchBan == null || checkRepost == null || !encryptedIp) {
-                Log.error('パラメータが足りないcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
-                await ShadowBanCheckController.notifyParamlessRequest(screenName, checkSearchBan, checkRepost, ip, connectionIp);
-                await DelayUtil.randomDelay();
-                return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_PARAMS, 400);
-            }
 
             if (!ShadowBanCheckController.isValidIpFormat(ip)) {
                 Log.error('IPが不正なcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
@@ -261,19 +251,6 @@ export class ShadowBanCheckController {
         }
 
         return true;
-    }
-
-    static async notifyParamlessRequest(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
-        const message = `
-🚨 **パラーメータの足りないcheck-by-userへのアクセスがあったので防御しました。**
-**Screen Name:** ${screenName ?? 'No screen name'}
-**Check Search Ban:** ${checkSearchBan ?? 'No Check Search Ban'}   
-**Check Repost:** ${checkRepost ?? 'No Check Repost'}
-**IP:** ${ip ?? 'No IP'}
-**Connection IP:** ${connectionIp ?? 'No Connection IP'}
-        `.trim();
-
-        await discordNotifyService.sendMessage(message);
     }
 
     static async notifyInvalidIp(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {

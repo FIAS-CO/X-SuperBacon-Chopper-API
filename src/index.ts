@@ -23,6 +23,7 @@ import { rateLimit } from './middleware/RateLimit'
 import { IpAccessControlController } from './controller/IpAccessControlController'
 import { SystemSettingController } from './controller/SystemSettingController'
 import { aegisMonitor } from './middleware/AegisMonitor'
+import { checkByUserParamExists } from './middleware/CheckByUserParamExists'
 
 type Bindings = {}
 
@@ -265,7 +266,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
 })
 
 app.post('/api/checks-byuser', rateLimit, ShadowBanCheckController.checkByUser);
-app.post('/api/check-by-user-inner', aegisMonitor, rateLimit, ShadowBanCheckController.checkByUserInner);
+app.post('/api/check-by-user-inner', aegisMonitor, checkByUserParamExists, rateLimit, ShadowBanCheckController.checkByUserInner);
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
