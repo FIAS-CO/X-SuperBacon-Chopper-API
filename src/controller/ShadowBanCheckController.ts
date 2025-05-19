@@ -134,14 +134,14 @@ export class ShadowBanCheckController {
                 Log.error('ブラックリストに登録されているIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
                 ShadowBanCheckController.notifyBlockByBlacklist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
                 await DelayUtil.randomDelay();
-                return respondWithError(c, 'Internal server error', 99991, 500); // ブラックリストの存在隠蔽のため、エラーコードは9999
+                return respondWithError(c, 'Internal server error', 9999, 500); // ブラックリストの存在隠蔽のため、エラーコードは9999
             }
 
             if (whitelistEnabled && !await ipAccessControlService.isWhitelisted(ip)) {
                 Log.error('ホワイトリストに登録されていないIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
                 ShadowBanCheckController.notifyBlockByWhitelist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
                 await DelayUtil.randomDelay();
-                return respondWithError(c, 'Internal server error', 99992, 500); // ホワイトリストの存在隠蔽のため、エラーコードは9999
+                return respondWithError(c, 'Internal server error', 9999, 500); // ホワイトリストの存在隠蔽のため、エラーコードは9999
             }
 
             const result = await shadowBanCheckService.checkShadowBanStatus(

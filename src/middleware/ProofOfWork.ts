@@ -68,7 +68,7 @@ async function handlePowFailure(c: Context, challenge: string, nonce: string, re
 
     await DelayUtil.randomDelay();
 
-    return respondWithError(c, 'Internal server error', 99994, 500);
+    return respondWithError(c, 'Internal server error', 9999, 500);
 }
 
 type NotifyData = {
