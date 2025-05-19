@@ -24,6 +24,8 @@ import { IpAccessControlController } from './controller/IpAccessControlControlle
 import { SystemSettingController } from './controller/SystemSettingController'
 import { aegisMonitor } from './middleware/AegisMonitor'
 import { checkByUserParamExists } from './middleware/CheckByUserParamExists'
+import { PowService } from './service/PowService'
+import { pow } from './middleware/ProofOfWork'
 
 type Bindings = {}
 
@@ -266,7 +268,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
 })
 
 app.post('/api/checks-byuser', rateLimit, ShadowBanCheckController.checkByUser);
-app.post('/api/check-by-user-inner', aegisMonitor, checkByUserParamExists, rateLimit, ShadowBanCheckController.checkByUserInner);
+app.post('/api/check-by-user-inner', aegisMonitor, checkByUserParamExists, rateLimit, pow, ShadowBanCheckController.checkByUserInner);
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
@@ -377,6 +379,11 @@ app.get('/api/system-control/disable-whitelist', SystemSettingController.disable
 
 app.get('/api/system-control/enable-aegis', SystemSettingController.enableAegis);
 app.get('/api/system-control/disable-aegis', SystemSettingController.disableAegis);
+
+app.get('/api/pow-challenge', async (c) => {
+  const data = PowService.generateChallenge()
+  return c.json(data)
+})
 
 //---
 //以下テスト用
