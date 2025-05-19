@@ -105,16 +105,54 @@ export class ShadowBanCheckController {
         let screenName: string | undefined = undefined;
 
         try {
-            screenName = c.req.query('screen_name');
-            if (!screenName) {
-                return c.json({ error: 'screen_name parameter is required' }, 400);
+            // リクエストパラメータの取得と検証
+            const data = await c.req.json();
+            // リクエストパラメータの取得と検証
+            screenName = data.screen_name;
+            const checkSearchBan = data.searchban;
+            const checkRepost = data.repost;
+            const encryptedIp = data.key;
+            const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+
+            // 接続元IPを取得（プロキシやロードバランサー経由のリクエストに対応）
+            const connectionIp = c.req.header('x-forwarded-for') ||
+                c.req.raw.headers.get('x-forwarded-for') ||
+                c.req.header('x-real-ip') ||
+                c.env?.remoteAddress ||
+                'unknown';
+
+            // TODO checkSearchBanとcheckRepostの値はnullにならないのでは？
+            if (!screenName || checkSearchBan == null || checkRepost == null || !encryptedIp) {
+                Log.error('パラメータが足りないcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
+                await ShadowBanCheckController.notifyParamlessRequest(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+                await DelayUtil.randomDelay();
+                return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_PARAMS, 400);
             }
 
-            const checkSearchBan = c.req.query('searchban') === 'true';
-            const checkRepost = c.req.query('repost') === 'true';
+            if (!ShadowBanCheckController.isValidIpFormat(ip)) {
+                Log.error('IPが不正なcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
+                await ShadowBanCheckController.notifyInvalidIp(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+                await DelayUtil.randomDelay();
+                return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
+            }
 
-            const encryptedIp = c.req.query('key');
-            const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+            const settings = await systemSettingService.getAccessSettings();
+            const blacklistEnabled = settings.blacklistEnabled;
+            const whitelistEnabled = settings.whitelistEnabled;
+
+            if (blacklistEnabled && await ipAccessControlService.isBlacklisted(ip)) {
+                Log.error('ブラックリストに登録されているIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
+                ShadowBanCheckController.notifyBlockByBlacklist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+                await DelayUtil.randomDelay();
+                return respondWithError(c, 'Internal server error', 99991, 500); // ブラックリストの存在隠蔽のため、エラーコードは9999
+            }
+
+            if (whitelistEnabled && !await ipAccessControlService.isWhitelisted(ip)) {
+                Log.error('ホワイトリストに登録されていないIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
+                ShadowBanCheckController.notifyBlockByWhitelist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+                await DelayUtil.randomDelay();
+                return respondWithError(c, 'Internal server error', 99992, 500); // ホワイトリストの存在隠蔽のため、エラーコードは9999
+            }
 
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
@@ -124,22 +162,16 @@ export class ShadowBanCheckController {
             );
 
             return c.json(result);
-
         } catch (error) {
-            // エラーハンドリング
             Log.error('/api/check-by-userの不明なエラー:', error);
 
-            // Discordに通知を送信
             await discordNotifyService.notifyError(
                 error instanceof Error ? error : new Error(String(error)),
                 `API: check-by-user (screenName: ${screenName})`
             );
             await DelayUtil.randomDelay();
 
-            return c.json({
-                error: 'Internal server error',
-                details: error instanceof Error ? error.message : 'Unknown error'
-            }, 500);
+            return respondWithError(c, 'Internal server error', 9999, 500);
         }
     }
 
