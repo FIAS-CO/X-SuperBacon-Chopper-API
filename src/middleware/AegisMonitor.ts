@@ -13,7 +13,7 @@ let accessLog: number[] = []
 let triggered = false
 
 // 閾値と時間範囲
-const THRESHOLD = 20
+const THRESHOLD = 500
 const INTERVAL_MS = 30 * 60 * 1000 // 30分
 
 async function triggerAction() {
