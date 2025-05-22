@@ -18,13 +18,13 @@ function cleanup() {
 export const PowService = {
     DIFFICULTY,
 
-    generateChallenge(): { challenge: string, difficulty: number } {
+    generateChallenge(): { key: string } {
         cleanup()
 
         const challenge = crypto.randomUUID()
         store.set(challenge, Date.now())
 
-        return { challenge, difficulty: DIFFICULTY }
+        return { key: challenge }
     },
 
     checkChallengeFormat(challenge: string, nonce: string): boolean {
