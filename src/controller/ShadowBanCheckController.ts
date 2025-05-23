@@ -110,39 +110,7 @@ export class ShadowBanCheckController {
             const checkSearchBan = data.searchban;
             const checkRepost = data.repost;
             const encryptedIp = data.key;
-            const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
-
-            // 接続元IPを取得（プロキシやロードバランサー経由のリクエストに対応）
-            const connectionIp = c.req.header('x-forwarded-for') ||
-                c.req.raw.headers.get('x-forwarded-for') ||
-                c.req.header('x-real-ip') ||
-                c.env?.remoteAddress ||
-                'unknown';
-
-            if (!ShadowBanCheckController.isValidIpFormat(ip)) {
-                Log.error('IPが不正なcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
-                await ShadowBanCheckController.notifyInvalidIp(screenName, checkSearchBan, checkRepost, ip, connectionIp);
-                await DelayUtil.randomDelay();
-                return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
-            }
-
-            const settings = await systemSettingService.getAccessSettings();
-            const blacklistEnabled = settings.blacklistEnabled;
-            const whitelistEnabled = settings.whitelistEnabled;
-
-            if (blacklistEnabled && await ipAccessControlService.isBlacklisted(ip)) {
-                Log.error('ブラックリストに登録されているIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
-                ShadowBanCheckController.notifyBlockByBlacklist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
-                await DelayUtil.randomDelay();
-                return respondWithError(c, 'Internal server error', 9999, 500); // ブラックリストの存在隠蔽のため、エラーコードは9999
-            }
-
-            if (whitelistEnabled && !await ipAccessControlService.isWhitelisted(ip)) {
-                Log.error('ホワイトリストに登録されていないIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
-                ShadowBanCheckController.notifyBlockByWhitelist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
-                await DelayUtil.randomDelay();
-                return respondWithError(c, 'Internal server error', 9999, 500); // ホワイトリストの存在隠蔽のため、エラーコードは9999
-            }
+            const ip = c.get('ip') || (encryptedIp ? serverDecryption.decrypt(encryptedIp) : '');
 
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
@@ -163,40 +131,6 @@ export class ShadowBanCheckController {
 
             return respondWithError(c, 'Internal server error', 9999, 500);
         }
-    }
-
-    static isValidIpFormat(ip: string): boolean {
-        if (!ip) return false;
-
-        // .で分割して要素が4つあるか確認
-        const segments = ip.split('.');
-
-        for (const segment of segments) {
-            // 空文字・非数値・先頭ゼロ（ただし "0" はOK）をチェック
-            if (
-                !/^\d+$/.test(segment) || // 数字のみか？
-                (segment.length > 1 && segment.startsWith('0')) || // 先頭ゼロ禁止（"0"はOK）
-                Number(segment) < 0 ||
-                Number(segment) > 255
-            ) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    static async notifyInvalidIp(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
-        const message = `
-🚨 **IPが不正なcheck-by-userへのアクセスがあったので防御しました。**
-**Screen Name:** ${screenName ?? 'No screen name'}
-**Check Search Ban:** ${checkSearchBan ?? 'No Check Search Ban'}   
-**Check Repost:** ${checkRepost ?? 'No Check Repost'}
-**IP:** ${ip ?? 'No IP'}
-**Connection IP:** ${connectionIp ?? 'No Connection IP'}
-        `.trim();
-
-        await discordNotifyService.sendMessage(message);
     }
 
     static async notifyNoTurnstileToken(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string, userAgent: string, referer: string): Promise<void> {
@@ -230,39 +164,6 @@ export class ShadowBanCheckController {
 **Connection IP:** ${connectionIp ?? 'No Connection IP'}
 **Error Codes:**
 ${errorCodesList}
-        `.trim();
-
-        await discordNotifyService.sendMessage(message);
-    }
-
-    static async notifyBlockByBlacklist(screenName: string, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
-        await ShadowBanCheckController.notifyAccessIssue('blacklist', screenName, checkSearchBan, checkRepost, ip, connectionIp);
-    }
-
-    static async notifyBlockByWhitelist(screenName: string, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
-        await ShadowBanCheckController.notifyAccessIssue('whitelist', screenName, checkSearchBan, checkRepost, ip, connectionIp);
-    }
-
-    static async notifyAccessIssue(
-        issueType: 'blacklist' | 'whitelist',
-        screenName: string,
-        checkSearchBan: boolean,
-        checkRepost: boolean,
-        ip: string,
-        connectionIp: string
-    ): Promise<void> {
-        const issueMessages: Record<string, string> = {
-            blacklist: 'ブラックリストに登録されているIPからのアクセスがありました。',
-            whitelist: 'ホワイトリストに登録されていないIPからのアクセスがありました。'
-        };
-
-        const message = `
-🚨 **${issueMessages[issueType]}**
-**Screen Name:** ${screenName}
-**Check Search Ban:** ${checkSearchBan}
-**Check Repost:** ${checkRepost}
-**IP:** ${ip}
-**Connection IP:** ${connectionIp}
         `.trim();
 
         await discordNotifyService.sendMessage(message);
