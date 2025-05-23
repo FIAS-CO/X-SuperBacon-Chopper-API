@@ -38,7 +38,10 @@ const veryShortRateLimiter = new RateLimiterMemory({
  */
 export const rateLimit: MiddlewareHandler = async (c, next) => {
     const data = await c.req.json();
-    const key = data.key; // URLパラメータからkeyを取得
+    const path = c.req.path;
+    const key = `${path}-${data.key}`;
+
+    Log.debug(`Rate limit key: ${key}`);
 
     if (!key) {
         return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_IP, 400);
