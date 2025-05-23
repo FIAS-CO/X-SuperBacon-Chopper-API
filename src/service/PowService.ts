@@ -1,7 +1,8 @@
-import { Log } from "../util/Log"
+import { aegisMonitorService } from "./AegisMonitorService"
 
 const EXPIRY_MS = 60 * 1000 // 1分
 const DIFFICULTY = 3
+const DIFFICULTY_IN_AEGIS = 4
 
 // Map<challenge文字列, 作成時刻>
 const store = new Map<string, number>()
@@ -18,13 +19,15 @@ function cleanup() {
 export const PowService = {
     DIFFICULTY,
 
-    generateChallenge(): { key: string } {
+    generateChallenge(): { key: string, value: number } {
         cleanup()
 
         const challenge = crypto.randomUUID()
         store.set(challenge, Date.now())
 
-        return { key: challenge }
+        const diffculty = aegisMonitorService.isAccessThresholdExceeded() ? DIFFICULTY_IN_AEGIS : DIFFICULTY;
+
+        return { key: challenge, value: diffculty * 123456789 };
     },
 
     checkChallengeFormat(challenge: string, nonce: string): boolean {
