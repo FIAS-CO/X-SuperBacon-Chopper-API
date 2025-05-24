@@ -80,7 +80,7 @@ app.post('/api/check-batch', async (c: Context) => {
     const body = await c.req.json();
     const urls: string[] = body.urls;
     const encryptedIp = body.key; // ユーザーにバレないよう偽装
-    const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+    const ip = encryptedIp ? await serverDecryption.decrypt(encryptedIp) : '';
 
     if (!urls || !Array.isArray(urls)) {
       return c.json({ error: 'URLs array is required in request body' }, 400);
@@ -725,7 +725,7 @@ app.get('/api/auth-token-info', async (c) => {
 app.get('/api/decrypt-ip', async (c: Context) => {
   try {
     const encryptedIp = c.req.query('key'); // クエリパラメータから取得
-    const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+    const ip = encryptedIp ? await serverDecryption.decrypt(encryptedIp) : '';
 
     return c.json({
       encryptedIp: encryptedIp,
@@ -746,8 +746,8 @@ app.get('/api/encrypt-ip', async (c: Context) => {
       return c.json({ error: 'IP parameter is required' }, 400);
     }
 
-    const encryptedIp = serverDecryption.encrypt(ip);
-    const decryptedIp = serverDecryption.decrypt(encryptedIp);
+    const encryptedIp = await serverDecryption.encrypt(ip);
+    const decryptedIp = await serverDecryption.decrypt(encryptedIp);
 
     return c.json({
       ip: ip,

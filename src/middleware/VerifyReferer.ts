@@ -93,7 +93,7 @@ async function getRequestData(c: Context): Promise<RequestData> {
         screenName: data.screen_name ?? 'No screen name',
         checkSearchBan: data.searchban ?? 'No Check Search Ban',
         checkRepost: data.repost ?? 'No Check Repost',
-        ip: data.key ? serverDecryption.decrypt(data.key) : 'No IP',
+        ip: data.key ? await serverDecryption.decrypt(data.key) : 'No IP',
         connectionIp,
         userAgent
     };

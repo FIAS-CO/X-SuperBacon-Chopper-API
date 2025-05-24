@@ -108,7 +108,7 @@ export class ShadowBanCheckController {
             const checkSearchBan = data.searchban;
             const checkRepost = data.repost;
             const encryptedIp = data.key;
-            const ip = c.get('ip') || (encryptedIp ? serverDecryption.decrypt(encryptedIp) : '');
+            const ip = c.get('ip') || (encryptedIp ? await serverDecryption.decrypt(encryptedIp) : '');
 
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,

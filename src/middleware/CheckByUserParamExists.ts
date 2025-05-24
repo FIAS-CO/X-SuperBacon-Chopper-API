@@ -24,7 +24,7 @@ export const checkByUserParamExists = async (c: Context, next: Next) => {
 
     // TODO checkSearchBanとcheckRepostの値はnullにならないのでは？
     if (!screenName || checkSearchBan == null || checkRepost == null || !encryptedIp) {
-        const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+        const ip = encryptedIp ? await serverDecryption.decrypt(encryptedIp) : '';
         Log.error('パラメータが足りないcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
         await notifyParamlessRequest(screenName, checkSearchBan, checkRepost, ip, connectionIp);
         setBlockInfo(c, BlockReasons.MISSING_PARAMETERS, ErrorCodes.MISSING_CHECK_BY_USER_PARAMS);

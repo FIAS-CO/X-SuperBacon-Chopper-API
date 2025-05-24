@@ -90,7 +90,7 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
 };
 
 async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Short" | "VeryShort", connectionIp: string = 'unknown'): Promise<void> {
-    const ip = serverDecryption.decrypt(key);
+    const ip = await serverDecryption.decrypt(key);
 
     Log.info(`Rate limit exceeded for IP: ${ip} on ${limiterName} limiter`);
     const limitDetail = limiterName === 'Long' ? '20分で40回まで許容。6時間ブロック'

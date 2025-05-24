@@ -29,7 +29,7 @@ export const accessLogger = async (c: Context, next: Next) => {
             screenName = body.screen_name;
             checkSearchBan = body.searchban;
             checkRepost = body.repost;
-            requestIp = body.key ? serverDecryption.decrypt(body.key) : 'unknown';
+            requestIp = body.key ? await serverDecryption.decrypt(body.key) : 'unknown';
         } catch (error) {
             // JSON解析エラーは無視（GETリクエストなど）
         }

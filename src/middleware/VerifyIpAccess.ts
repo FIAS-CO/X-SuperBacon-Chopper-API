@@ -16,7 +16,7 @@ export const verifyIpAccess = async (c: Context, next: Next) => {
     const checkRepost = data.repost;
     const encryptedIp = data.key;
 
-    const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+    const ip = encryptedIp ? await serverDecryption.decrypt(encryptedIp) : '';
     const connectionIp = c.req.header('x-forwarded-for') ||
         c.req.raw.headers.get('x-forwarded-for') ||
         c.req.header('x-real-ip') ||

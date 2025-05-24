@@ -50,7 +50,7 @@ async function handlePowFailure(c: Context, challenge: string, nonce: string, re
     const checkSearchBan = data.searchban ?? 'No Check Search Ban';
     const checkRepost = data.repost ?? 'No Check Repost';
     const encryptedIp = data.key;
-    const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : 'No IP';
+    const ip = encryptedIp ? await serverDecryption.decrypt(encryptedIp) : 'No IP';
     const connectionIp = c.req.header('x-forwarded-for') ||
         c.req.raw.headers.get('x-forwarded-for') ||
         c.req.header('x-real-ip') ||
