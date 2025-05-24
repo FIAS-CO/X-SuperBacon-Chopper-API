@@ -5,6 +5,7 @@ import { discordNotifyService } from '../service/DiscordNotifyService'
 import { DelayUtil } from '../util/DelayUtil'
 import { respondWithError } from '../util/Response'
 import { serverDecryption } from '../util/ServerDecryption'
+import { setBlockInfo, BlockReasons } from '../util/AccessLogHelper'
 
 export const pow = async (c: Context, next: Next) => {
     const challenge = c.req.header('X-Session-Token') || '';
@@ -12,16 +13,19 @@ export const pow = async (c: Context, next: Next) => {
 
     // 1. フォーマットチェック
     if (!PowService.checkChallengeFormat(challenge, nonce)) {
+        setBlockInfo(c, BlockReasons.POW_INVALID_FORMAT, 9999);
         return await handlePowFailure(c, challenge, nonce, '計算問題または回答が提出されませんでした。');
     }
 
     // 2. ストア存在＋有効期限チェック
     if (!PowService.checkChallengeValid(challenge)) {
+        setBlockInfo(c, BlockReasons.POW_EXPIRED, 9999);
         return await handlePowFailure(c, challenge, nonce, '計算問題が発行されたものでないか、または期限切れです。');
     }
 
     // 3. PoWハッシュ検証
     if (!await PowService.verifyChallengeAndNonce(challenge, nonce)) {
+        setBlockInfo(c, BlockReasons.POW_INVALID_NONCE, 9999);
         return await handlePowFailure(c, challenge, nonce, '計算問題と回答が一致しません。');
     }
 

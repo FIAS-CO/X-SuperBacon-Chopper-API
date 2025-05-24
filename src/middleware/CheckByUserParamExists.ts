@@ -5,6 +5,7 @@ import { DelayUtil } from '../util/DelayUtil'
 import { respondWithError } from '../util/Response'
 import { serverDecryption } from '../util/ServerDecryption'
 import { ErrorCodes } from '../errors/ErrorCodes'
+import { setBlockInfo, BlockReasons } from '../util/AccessLogHelper'
 
 export const checkByUserParamExists = async (c: Context, next: Next) => {
     // リクエストパラメータの取得と検証
@@ -26,6 +27,7 @@ export const checkByUserParamExists = async (c: Context, next: Next) => {
         const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
         Log.error('パラメータが足りないcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
         await notifyParamlessRequest(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+        setBlockInfo(c, BlockReasons.MISSING_PARAMETERS, ErrorCodes.MISSING_CHECK_BY_USER_PARAMS);
         await DelayUtil.randomDelay();
         return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_PARAMS, 400);
     }

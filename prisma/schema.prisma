@@ -75,3 +75,23 @@ model SystemSetting {
   value             String
   updatedAt         DateTime @updatedAt
 }
+
+model ApiAccessLog {
+  id             Int      @id @default(autoincrement())
+  endpoint       String
+  method         String
+  requestIp      String
+  connectionIp   String
+  userAgent      String?
+  responseStatus Int
+  responseTime   Int
+  screenName     String?
+  errorCode      Int?
+  isBlocked      Boolean  @default(false)
+  blockReason    String?
+  timestamp      DateTime @default(now())
+
+  @@index([timestamp])
+  @@index([requestIp])
+  @@index([isBlocked])
+}

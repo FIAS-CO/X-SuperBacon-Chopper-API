@@ -7,6 +7,7 @@ import { serverDecryption } from '../util/ServerDecryption';
 import { discordNotifyService } from '../service/DiscordNotifyService';
 import { DelayUtil } from '../util/DelayUtil';
 import { Log } from '../util/Log';
+import { setBlockInfo, BlockReasons } from '../util/AccessLogHelper';
 
 export const verifyIpAccess = async (c: Context, next: Next) => {
     const data = await c.req.json();
@@ -25,6 +26,7 @@ export const verifyIpAccess = async (c: Context, next: Next) => {
     if (!isValidIpFormat(ip)) {
         Log.error('IPが不正なcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
         await notifyInvalidIp(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+        setBlockInfo(c, BlockReasons.INVALID_IP_FORMAT, ErrorCodes.INVALID_IP_FORMAT);
         await DelayUtil.randomDelay();
         return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
     }
@@ -32,14 +34,16 @@ export const verifyIpAccess = async (c: Context, next: Next) => {
     const settings = await systemSettingService.getAccessSettings();
     if (settings.blacklistEnabled && await ipAccessControlService.isBlacklisted(ip)) {
         Log.error('ブラックリストに登録されているIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
-        notifyBlockByBlacklist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+        await notifyBlockByBlacklist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+        setBlockInfo(c, BlockReasons.IP_BLACKLISTED, 9999);
         await DelayUtil.randomDelay();
         return respondWithError(c, 'Internal server error', 9999, 500); // ブラックリストの存在隠蔽のため、エラーコードは9999
     }
 
     if (settings.whitelistEnabled && !await ipAccessControlService.isWhitelisted(ip)) {
         Log.error('ホワイトリストに登録されていないIPからのアクセスがありました。', { screenName, checkSearchBan, checkRepost, ip });
-        notifyBlockByWhitelist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+        await notifyBlockByWhitelist(screenName, checkSearchBan, checkRepost, ip, connectionIp);
+        setBlockInfo(c, BlockReasons.IP_NOT_WHITELISTED, 9999);
         await DelayUtil.randomDelay();
         return respondWithError(c, 'Internal server error', 9999, 500); // ホワイトリストの存在隠蔽のため、エラーコードは9999
     }

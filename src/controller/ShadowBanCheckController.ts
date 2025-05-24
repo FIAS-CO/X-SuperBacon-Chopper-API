@@ -8,6 +8,7 @@ import { respondWithError } from '../util/Response';
 import { ipAccessControlService } from '../service/IpAccessControlService';
 import { systemSettingService } from '../service/SystemSettingService';
 import { DelayUtil } from '../util/DelayUtil';
+import { setBlockInfo } from '../util/AccessLogHelper';
 
 export class ShadowBanCheckController {
     static async checkByUser(c: Context) {
@@ -122,7 +123,7 @@ export class ShadowBanCheckController {
             return c.json(result);
         } catch (error) {
             Log.error('/api/check-by-userの不明なエラー:', error);
-
+            setBlockInfo(c, "unknown", 9999);
             await discordNotifyService.notifyError(
                 error instanceof Error ? error : new Error(String(error)),
                 `API: check-by-user (screenName: ${screenName})`

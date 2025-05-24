@@ -27,6 +27,7 @@ import { checkByUserParamExists } from './middleware/CheckByUserParamExists'
 import { PowService } from './service/PowService'
 import { pow } from './middleware/ProofOfWork'
 import { verifyIpAccess } from './middleware/VerifyIpAccess'
+import { accessLogger } from './middleware/AccessLogger'
 
 type Bindings = {}
 
@@ -269,7 +270,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
 })
 
 app.post('/api/checks-byuser', rateLimit, ShadowBanCheckController.checkByUser);
-app.post('/api/check-by-user-inner', aegisMonitor, checkByUserParamExists, rateLimit, verifyIpAccess, pow, ShadowBanCheckController.checkByUserInner);
+app.post('/api/check-by-user-inner', accessLogger, aegisMonitor, checkByUserParamExists, rateLimit, verifyIpAccess, pow, ShadowBanCheckController.checkByUserInner);
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {

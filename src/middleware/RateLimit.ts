@@ -5,6 +5,7 @@ import { serverDecryption } from '../util/ServerDecryption';
 import { respondWithError } from '../util/Response';
 import { Log } from '../util/Log';
 import { ErrorCodes } from '../errors/ErrorCodes';
+import { BlockReasons, setBlockInfo } from '../util/AccessLogHelper';
 
 const longRateLimiter = new RateLimiterMemory({
     points: 40,            // 40回まで許可（APIアクセスなど）
@@ -56,6 +57,7 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
     try {
         await veryShortRateLimiter.consume(key);
     } catch {
+        setBlockInfo(c, BlockReasons.RATE_LIMIT_VERY_SHORT, 9999);
         notifyRateLimit(key, 'VeryShort', connectionIp);
         return rateLimitExceededResponse(c);
     }
@@ -63,6 +65,7 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
     try {
         await shortRateLimiter.consume(key);
     } catch {
+        setBlockInfo(c, BlockReasons.RATE_LIMIT_SHORT, 9999);
         notifyRateLimit(key, 'Short', connectionIp);
         return rateLimitExceededResponse(c);
     }
@@ -70,6 +73,7 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
     try {
         await middleRateLimiter.consume(key);
     } catch {
+        setBlockInfo(c, BlockReasons.RATE_LIMIT_MIDDLE, 9999);
         notifyRateLimit(key, 'Middle', connectionIp);
         return rateLimitExceededResponse(c);
     }
@@ -77,6 +81,7 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
     try {
         await longRateLimiter.consume(key);
     } catch {
+        setBlockInfo(c, BlockReasons.RATE_LIMIT_LONG, 9999);
         notifyRateLimit(key, 'Long', connectionIp);
         return rateLimitExceededResponse(c);
     }
