@@ -383,7 +383,7 @@ app.get('/api/system-control/disable-whitelist', SystemSettingController.disable
 app.get('/api/system-control/enable-aegis', SystemSettingController.enableAegis);
 app.get('/api/system-control/disable-aegis', SystemSettingController.disableAegis);
 
-app.post('/api/generate-keyvalue', checkByUserParamExists, rateLimit, verifyIpAccess, verifyReferer, async (c) => {
+app.post('/api/generate-keyvalue', accessLogger, checkByUserParamExists, rateLimit, verifyIpAccess, verifyReferer, async (c) => {
   const data = PowService.generateChallenge()
   return c.json(data)
 })
