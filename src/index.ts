@@ -29,6 +29,7 @@ import { pow } from './middleware/ProofOfWork'
 import { verifyIpAccess } from './middleware/VerifyIpAccess'
 import { accessLogger } from './middleware/AccessLogger'
 import { verifyReferer } from './middleware/VerifyReferer'
+import { ApiAccessLogController } from './controller/ApiAccessLogController'
 
 type Bindings = {}
 
@@ -382,6 +383,8 @@ app.get('/api/system-control/disable-whitelist', SystemSettingController.disable
 
 app.get('/api/system-control/enable-aegis', SystemSettingController.enableAegis);
 app.get('/api/system-control/disable-aegis', SystemSettingController.disableAegis);
+
+app.get('/api/system-control/get-access-log', ApiAccessLogController.getLogs);
 
 app.post('/api/generate-keyvalue', accessLogger, checkByUserParamExists, rateLimit, verifyIpAccess, verifyReferer, async (c) => {
   const data = PowService.generateChallenge()
