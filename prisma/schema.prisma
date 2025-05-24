@@ -83,6 +83,7 @@ model ApiAccessLog {
   requestIp      String
   connectionIp   String
   userAgent      String?
+  referer        String?
   responseStatus Int
   responseTime   Int
   screenName     String?

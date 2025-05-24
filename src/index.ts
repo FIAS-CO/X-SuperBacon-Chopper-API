@@ -28,6 +28,7 @@ import { PowService } from './service/PowService'
 import { pow } from './middleware/ProofOfWork'
 import { verifyIpAccess } from './middleware/VerifyIpAccess'
 import { accessLogger } from './middleware/AccessLogger'
+import { verifyReferer } from './middleware/VerifyReferer'
 
 type Bindings = {}
 
@@ -270,7 +271,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
 })
 
 app.post('/api/checks-byuser', rateLimit, ShadowBanCheckController.checkByUser);
-app.post('/api/check-by-user-inner', accessLogger, aegisMonitor, checkByUserParamExists, rateLimit, verifyIpAccess, pow, ShadowBanCheckController.checkByUserInner);
+app.post('/api/check-by-user-inner', accessLogger, aegisMonitor, checkByUserParamExists, rateLimit, verifyIpAccess, pow, verifyReferer, ShadowBanCheckController.checkByUserInner);
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
@@ -382,7 +383,7 @@ app.get('/api/system-control/disable-whitelist', SystemSettingController.disable
 app.get('/api/system-control/enable-aegis', SystemSettingController.enableAegis);
 app.get('/api/system-control/disable-aegis', SystemSettingController.disableAegis);
 
-app.post('/api/generate-keyvalue', checkByUserParamExists, rateLimit, verifyIpAccess, async (c) => {
+app.post('/api/generate-keyvalue', checkByUserParamExists, rateLimit, verifyIpAccess, verifyReferer, async (c) => {
   const data = PowService.generateChallenge()
   return c.json(data)
 })

@@ -22,4 +22,5 @@ export const BlockReasons = {
     POW_EXPIRED: 'PoW: Challenge expired',
     POW_INVALID_NONCE: 'PoW: Invalid nonce',
     MISSING_PARAMETERS: 'Missing required parameters',
+    SUSPICIOUS_REFERER: 'Suspicious referer',
 } as const;

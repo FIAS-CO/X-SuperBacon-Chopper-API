@@ -7,6 +7,7 @@ interface AccessLogData {
     requestIp: string;
     connectionIp: string;
     userAgent?: string;
+    referer?: string;
     responseStatus: number;
     responseTime: number;
     screenName?: string;
@@ -28,6 +29,7 @@ export class ApiAccessLogService {
                     requestIp: data.requestIp,
                     connectionIp: data.connectionIp,
                     userAgent: data.userAgent || null,
+                    referer: data.referer || null,
                     responseStatus: data.responseStatus,
                     responseTime: data.responseTime,
                     screenName: data.screenName || null,

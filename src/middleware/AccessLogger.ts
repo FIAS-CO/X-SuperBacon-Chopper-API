@@ -15,6 +15,7 @@ export const accessLogger = async (c: Context, next: Next) => {
         'unknown';
 
     const userAgent = c.req.header('user-agent') || 'unknown';
+    const referer = c.req.header('referer') || c.req.header('referrer') || 'unknown';
 
     let requestIp: string = 'unknown';
     let screenName: string = 'unknown';
@@ -81,6 +82,7 @@ export const accessLogger = async (c: Context, next: Next) => {
             requestIp,
             connectionIp,
             userAgent,
+            referer,
             responseStatus,
             responseTime,
             screenName,
