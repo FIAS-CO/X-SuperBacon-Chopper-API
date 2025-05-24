@@ -35,8 +35,8 @@ export class ApiAccessLogService {
                     responseStatus: data.responseStatus,
                     responseTime: data.responseTime,
                     screenName: data.screenName || null,
-                    checkSearchBan: data.checkSearchBan || false,
-                    checkRepost: data.checkRepost || false,
+                    checkSearchBan: data.checkSearchBan ?? null,
+                    checkRepost: data.checkRepost ?? null,
                     errorCode: data.errorCode || null,
                     isBlocked: data.isBlocked || false,
                     blockReason: data.blockReason || null

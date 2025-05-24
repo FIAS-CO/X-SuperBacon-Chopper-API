@@ -19,8 +19,8 @@ export const accessLogger = async (c: Context, next: Next) => {
 
     let requestIp: string = 'unknown';
     let screenName: string = 'unknown';
-    let checkSearchBan = null;
-    let checkRepost = null;
+    let checkSearchBan: boolean | undefined = undefined;
+    let checkRepost: boolean | undefined = undefined;
 
     // POSTリクエストの場合、リクエストボディから情報を取得
     if (method === 'POST') {
@@ -90,6 +90,8 @@ export const accessLogger = async (c: Context, next: Next) => {
             responseStatus,
             responseTime,
             screenName,
+            checkSearchBan,
+            checkRepost,
             errorCode,
             isBlocked,
             blockReason
