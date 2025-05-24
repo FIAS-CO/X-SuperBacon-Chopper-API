@@ -11,6 +11,8 @@ interface AccessLogData {
     responseStatus: number;
     responseTime: number;
     screenName?: string;
+    checkSearchBan?: boolean;
+    checkRepost?: boolean;
     errorCode?: number;
     isBlocked?: boolean;
     blockReason?: string;
@@ -33,6 +35,8 @@ export class ApiAccessLogService {
                     responseStatus: data.responseStatus,
                     responseTime: data.responseTime,
                     screenName: data.screenName || null,
+                    checkSearchBan: data.checkSearchBan || false,
+                    checkRepost: data.checkRepost || false,
                     errorCode: data.errorCode || null,
                     isBlocked: data.isBlocked || false,
                     blockReason: data.blockReason || null

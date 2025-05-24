@@ -19,12 +19,16 @@ export const accessLogger = async (c: Context, next: Next) => {
 
     let requestIp: string = 'unknown';
     let screenName: string = 'unknown';
+    let checkSearchBan = null;
+    let checkRepost = null;
 
     // POSTリクエストの場合、リクエストボディから情報を取得
     if (method === 'POST') {
         try {
             const body = await c.req.json();
             screenName = body.screen_name;
+            checkSearchBan = body.searchban;
+            checkRepost = body.repost;
             requestIp = body.key ? serverDecryption.decrypt(body.key) : 'unknown';
         } catch (error) {
             // JSON解析エラーは無視（GETリクエストなど）

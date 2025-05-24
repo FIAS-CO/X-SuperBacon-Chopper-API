@@ -87,6 +87,8 @@ model ApiAccessLog {
   responseStatus Int
   responseTime   Int
   screenName     String?
+  checkSearchBan Boolean?
+  checkRepost    Boolean?
   errorCode      Int?
   isBlocked      Boolean  @default(false)
   blockReason    String?
