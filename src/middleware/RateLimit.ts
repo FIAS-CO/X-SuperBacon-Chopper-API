@@ -6,6 +6,7 @@ import { respondWithError } from '../util/Response';
 import { Log } from '../util/Log';
 import { ErrorCodes } from '../errors/ErrorCodes';
 import { BlockReasons, setBlockInfo } from '../util/AccessLogHelper';
+import { DelayUtil } from '../util/DelayUtil';
 
 const longRateLimiter = new RateLimiterMemory({
     points: 40,            // 40回まで許可（APIアクセスなど）
@@ -38,27 +39,26 @@ const veryShortRateLimiter = new RateLimiterMemory({
  * @returns 
  */
 export const rateLimit: MiddlewareHandler = async (c, next) => {
-    const data = await c.req.json();
+    // Contextから既にパース済みのデータを取得
+
     const path = c.req.path;
-    const key = `${path}-${data.key}`;
+    const ip = c.get('ip') || '';
+    const key = `${path}-${ip}`;
 
     Log.debug(`Rate limit key: ${key}`);
 
-    if (!key) {
+    if (!ip) {
+        setBlockInfo(c, BlockReasons.INVALID_IP_FORMAT + "in RateLimit", 9999);
+        await DelayUtil.randomDelay();
         return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_IP, 400);
     }
 
-    const connectionIp = c.req.header('x-forwarded-for') ||
-        c.req.raw.headers.get('x-forwarded-for') ||
-        c.req.header('x-real-ip') ||
-        c.env?.remoteAddress ||
-        'unknown';
-
+    const connectionIp = c.get('connectionIp') || 'unknown';
     try {
         await veryShortRateLimiter.consume(key);
     } catch {
         setBlockInfo(c, BlockReasons.RATE_LIMIT_VERY_SHORT, 9999);
-        notifyRateLimit(key, 'VeryShort', connectionIp);
+        notifyRateLimit('VeryShort', connectionIp, ip);
         return rateLimitExceededResponse(c);
     }
 
@@ -66,7 +66,7 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
         await shortRateLimiter.consume(key);
     } catch {
         setBlockInfo(c, BlockReasons.RATE_LIMIT_SHORT, 9999);
-        notifyRateLimit(key, 'Short', connectionIp);
+        notifyRateLimit('Short', connectionIp, ip);
         return rateLimitExceededResponse(c);
     }
 
@@ -74,7 +74,7 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
         await middleRateLimiter.consume(key);
     } catch {
         setBlockInfo(c, BlockReasons.RATE_LIMIT_MIDDLE, 9999);
-        notifyRateLimit(key, 'Middle', connectionIp);
+        notifyRateLimit('Middle', connectionIp, ip);
         return rateLimitExceededResponse(c);
     }
 
@@ -82,16 +82,18 @@ export const rateLimit: MiddlewareHandler = async (c, next) => {
         await longRateLimiter.consume(key);
     } catch {
         setBlockInfo(c, BlockReasons.RATE_LIMIT_LONG, 9999);
-        notifyRateLimit(key, 'Long', connectionIp);
+        notifyRateLimit('Long', connectionIp, ip);
         return rateLimitExceededResponse(c);
     }
 
     await next();
 };
 
-async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Short" | "VeryShort", connectionIp: string = 'unknown'): Promise<void> {
-    const ip = await serverDecryption.decrypt(key);
-
+async function notifyRateLimit(
+    limiterName: "Long" | "Middle" | "Short" | "VeryShort",
+    connectionIp: string = 'unknown',
+    ip: string = 'unknown'
+): Promise<void> {
     Log.info(`Rate limit exceeded for IP: ${ip} on ${limiterName} limiter`);
     const limitDetail = limiterName === 'Long' ? '20分で40回まで許容。6時間ブロック'
         : limiterName === 'Middle' ? '2分で9回まで許容。30分ブロック'
@@ -100,9 +102,9 @@ async function notifyRateLimit(key: string, limiterName: "Long" | "Middle" | "Sh
 
     const message = `
 🚨 **大量アクセスを検知しました**
-**IP:** ${ip}
 **Limiter:** ${limiterName}
 **Detail:** ${limitDetail}
+**IP:** ${ip}
 **Connection IP:** ${connectionIp}
     `.trim();
 

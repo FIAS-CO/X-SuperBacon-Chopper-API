@@ -3,32 +3,27 @@ import { ErrorCodes } from '../errors/ErrorCodes';
 import { ipAccessControlService } from '../service/IpAccessControlService';
 import { systemSettingService } from '../service/SystemSettingService';
 import { respondWithError } from '../util/Response';
-import { serverDecryption } from '../util/ServerDecryption';
 import { discordNotifyService } from '../service/DiscordNotifyService';
 import { DelayUtil } from '../util/DelayUtil';
 import { Log } from '../util/Log';
 import { setBlockInfo, BlockReasons } from '../util/AccessLogHelper';
 
 export const verifyIpAccess = async (c: Context, next: Next) => {
-    const data = await c.req.json();
-    const screenName = data.screen_name;
+    const data = c.get('requestData') || {};
+    const screenName = data.screen_name || 'unknown';
     const checkSearchBan = data.searchban;
     const checkRepost = data.repost;
-    const encryptedIp = data.key;
 
-    const ip = encryptedIp ? await serverDecryption.decrypt(encryptedIp) : '';
-    const connectionIp = c.req.header('x-forwarded-for') ||
-        c.req.raw.headers.get('x-forwarded-for') ||
-        c.req.header('x-real-ip') ||
-        c.env?.remoteAddress ||
-        'unknown';
+    const ip = c.get('ip') || '';
+    const connectionIp = c.get('connectionIp') || 'unknown';
 
     if (!isValidIpFormat(ip)) {
         Log.error('IPが不正なcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
         await notifyInvalidIp(screenName, checkSearchBan, checkRepost, ip, connectionIp);
         setBlockInfo(c, BlockReasons.INVALID_IP_FORMAT, ErrorCodes.INVALID_IP_FORMAT);
         await DelayUtil.randomDelay();
-        return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
+        // return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
+        return respondWithError(c, 'Internal server error', 9999, 500); // ブラックリストの存在隠蔽のため、エラーコードは9999
     }
 
     const settings = await systemSettingService.getAccessSettings();
@@ -48,7 +43,6 @@ export const verifyIpAccess = async (c: Context, next: Next) => {
         return respondWithError(c, 'Internal server error', 9999, 500); // ホワイトリストの存在隠蔽のため、エラーコードは9999
     }
 
-    c.set('ip', ip);
     await next();
 };
 

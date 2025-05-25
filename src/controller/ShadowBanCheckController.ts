@@ -100,16 +100,16 @@ export class ShadowBanCheckController {
     }
 
     static async checkByUserInner(c: Context) {
-        const data = await c.req.json();
+        // Contextから既にパース済みのデータを取得
+        const data = c.get('requestData') || {};
+
+        // リクエストパラメータの取得(存在するかの検証はmiddlewareで行う)
         const screenName = data.screen_name;
+        const checkSearchBan = data.searchban;
+        const checkRepost = data.repost;
+        const ip = c.get('ip') || '';
 
         try {
-            // リクエストパラメータの取得(存在するかの検証はmiddlewareで行う)
-            const checkSearchBan = data.searchban;
-            const checkRepost = data.repost;
-            const encryptedIp = data.key;
-            const ip = c.get('ip') || (encryptedIp ? await serverDecryption.decrypt(encryptedIp) : '');
-
             const result = await shadowBanCheckService.checkShadowBanStatus(
                 screenName,
                 ip,

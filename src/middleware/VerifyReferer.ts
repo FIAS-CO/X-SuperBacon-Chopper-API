@@ -1,6 +1,5 @@
 import { Context, Next } from 'hono';
 import { respondWithError } from '../util/Response';
-import { serverDecryption } from '../util/ServerDecryption';
 import { discordNotifyService } from '../service/DiscordNotifyService';
 import { DelayUtil } from '../util/DelayUtil';
 import { Log } from '../util/Log';
@@ -38,65 +37,39 @@ export const verifyReferer = async (c: Context, next: Next) => {
 };
 
 async function handleSuspiciousReferer(c: Context, reason: string, domain: string): Promise<Response> {
-    const data = await getRequestData(c);
+    // Contextから既にパース済みのデータを取得
+    const data = c.get('requestData') || {};
+    const ip = c.get('ip') || 'No IP';
+    const connectionIp = c.get('connectionIp') || 'No Connection IP';
+    const userAgent = c.req.header('user-agent') || 'なし';
+    const referer = c.req.header('referer') || 'なし';
+
+    const screenName = data.screen_name ?? 'No screen name';
+    const checkSearchBan = data.searchban ?? 'No Check Search Ban';
+    const checkRepost = data.repost ?? 'No Check Repost';
 
     Log.error(`不審なドメインからのアクセス: ${reason}`, {
         domain,
-        screenName: data.screenName,
-        ip: data.ip
+        screenName,
+        ip
     });
 
     await notifySuspiciousDomain({
         reason,
         domain,
-        screenName: data.screenName,
-        checkSearchBan: data.checkSearchBan,
-        checkRepost: data.checkRepost,
-        ip: data.ip,
-        connectionIp: data.connectionIp,
-        userAgent: data.userAgent,
-        referer: c.req.header('referer') || 'なし'
+        screenName,
+        checkSearchBan,
+        checkRepost,
+        ip,
+        connectionIp,
+        userAgent,
+        referer
     });
 
     setBlockInfo(c, `${BlockReasons.SUSPICIOUS_REFERER}: ${reason}`, 9999);
     await DelayUtil.randomDelay();
 
     return respondWithError(c, 'Internal server error', 9999, 500);
-}
-
-type RequestData = {
-    screenName: string;
-    checkSearchBan: string;
-    checkRepost: string;
-    ip: string;
-    connectionIp: string;
-    userAgent: string;
-};
-
-async function getRequestData(c: Context): Promise<RequestData> {
-    let data: any = {};
-    try {
-        data = await c.req.json();
-    } catch {
-        // JSONパース失敗時は空オブジェクト
-    }
-
-    const connectionIp = c.req.header('x-forwarded-for') ||
-        c.req.raw.headers.get('x-forwarded-for') ||
-        c.req.header('x-real-ip') ||
-        c.env?.remoteAddress ||
-        'unknown';
-
-    const userAgent = c.req.header('user-agent') || 'なし';
-
-    return {
-        screenName: data.screen_name ?? 'No screen name',
-        checkSearchBan: data.searchban ?? 'No Check Search Ban',
-        checkRepost: data.repost ?? 'No Check Repost',
-        ip: data.key ? await serverDecryption.decrypt(data.key) : 'No IP',
-        connectionIp,
-        userAgent
-    };
 }
 
 type NotifyData = {

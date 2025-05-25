@@ -4,7 +4,6 @@ import { Log } from '../util/Log'
 import { discordNotifyService } from '../service/DiscordNotifyService'
 import { DelayUtil } from '../util/DelayUtil'
 import { respondWithError } from '../util/Response'
-import { serverDecryption } from '../util/ServerDecryption'
 import { setBlockInfo, BlockReasons } from '../util/AccessLogHelper'
 
 export const pow = async (c: Context, next: Next) => {
@@ -33,29 +32,14 @@ export const pow = async (c: Context, next: Next) => {
 };
 
 async function handlePowFailure(c: Context, challenge: string, nonce: string, reason: string): Promise<Response> {
-    type PowRequestData = {
-        screen_name?: string;
-        searchban?: string;
-        repost?: string;
-        key?: string;
-    };
-    let data: PowRequestData = {};
-    try {
-        data = await c.req.json();
-    } catch {
-        // JSONパース失敗時は空オブジェクトにする
-    }
+    // Contextから既にパース済みのデータを取得
+    const data = c.get('requestData') || {};
 
     const screenName = data.screen_name ?? 'No screen name';
     const checkSearchBan = data.searchban ?? 'No Check Search Ban';
     const checkRepost = data.repost ?? 'No Check Repost';
-    const encryptedIp = data.key;
-    const ip = encryptedIp ? await serverDecryption.decrypt(encryptedIp) : 'No IP';
-    const connectionIp = c.req.header('x-forwarded-for') ||
-        c.req.raw.headers.get('x-forwarded-for') ||
-        c.req.header('x-real-ip') ||
-        c.env?.remoteAddress ||
-        'No Connection IP';
+    const ip = c.get('ip') || 'No IP';
+    const connectionIp = c.get('connectionIp') || 'No Connection IP';
 
     Log.error(`PoW検証失敗: ${reason}`, { screenName, challenge, nonce });
 

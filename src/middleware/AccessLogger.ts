@@ -8,32 +8,17 @@ export const accessLogger = async (c: Context, next: Next) => {
     // リクエスト情報の取得
     const method = c.req.method;
     const endpoint = c.req.path;
-    const connectionIp = c.req.header('x-forwarded-for') ||
-        c.req.raw.headers.get('x-forwarded-for') ||
-        c.req.header('x-real-ip') ||
-        c.env?.remoteAddress ||
-        'unknown';
+    const connectionIp = c.get('connectionIp') || 'unknown';
 
     const userAgent = c.req.header('user-agent') || 'unknown';
     const referer = c.req.header('referer') || c.req.header('referrer') || 'unknown';
 
-    let requestIp: string = 'unknown';
-    let screenName: string = 'unknown';
-    let checkSearchBan: boolean | undefined = undefined;
-    let checkRepost: boolean | undefined = undefined;
-
-    // POSTリクエストの場合、リクエストボディから情報を取得
-    if (method === 'POST') {
-        try {
-            const body = await c.req.json();
-            screenName = body.screen_name;
-            checkSearchBan = body.searchban;
-            checkRepost = body.repost;
-            requestIp = body.key ? await serverDecryption.decrypt(body.key) : 'unknown';
-        } catch (error) {
-            // JSON解析エラーは無視（GETリクエストなど）
-        }
-    }
+    // Contextから復号化済みのデータを取得
+    const body = c.get('requestData') || {};
+    const screenName = body.screen_name || 'unknown';
+    const checkSearchBan = body.searchban;
+    const checkRepost = body.repost;
+    const requestIp = c.get('ip') || 'unknown';
 
     let responseStatus = 200;
     let errorCode: number = 0;

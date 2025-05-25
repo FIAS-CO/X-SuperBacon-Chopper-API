@@ -3,28 +3,21 @@ import { Log } from '../util/Log'
 import { discordNotifyService } from '../service/DiscordNotifyService'
 import { DelayUtil } from '../util/DelayUtil'
 import { respondWithError } from '../util/Response'
-import { serverDecryption } from '../util/ServerDecryption'
 import { ErrorCodes } from '../errors/ErrorCodes'
 import { setBlockInfo, BlockReasons } from '../util/AccessLogHelper'
 
 export const checkByUserParamExists = async (c: Context, next: Next) => {
-    // リクエストパラメータの取得と検証
-    const data = await c.req.json();
+    // Contextから既にパース済みのデータを取得
+    const data = c.get('requestData') || {};
+
     const screenName = data.screen_name;
     const checkSearchBan = data.searchban;
     const checkRepost = data.repost;
     const encryptedIp = data.key;
 
-    // 接続元IPを取得（プロキシやロードバランサー経由のリクエストに対応）
-    const connectionIp = c.req.header('x-forwarded-for') ||
-        c.req.raw.headers.get('x-forwarded-for') ||
-        c.req.header('x-real-ip') ||
-        c.env?.remoteAddress ||
-        'unknown';
-
-    // TODO checkSearchBanとcheckRepostの値はnullにならないのでは？
     if (!screenName || checkSearchBan == null || checkRepost == null || !encryptedIp) {
-        const ip = encryptedIp ? await serverDecryption.decrypt(encryptedIp) : '';
+        const ip = c.get('ip') || '';
+        const connectionIp = c.get('connectionIp') || 'unknown';
         Log.error('パラメータが足りないcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
         await notifyParamlessRequest(screenName, checkSearchBan, checkRepost, ip, connectionIp);
         setBlockInfo(c, BlockReasons.MISSING_PARAMETERS, ErrorCodes.MISSING_CHECK_BY_USER_PARAMS);
