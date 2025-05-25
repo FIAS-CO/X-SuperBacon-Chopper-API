@@ -36,6 +36,14 @@ type Bindings = {}
 
 const app = new Hono<{ Bindings: Bindings }>()
 
+app.options('*', (c) => {
+  return c.body(null, 204, {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+  })
+})
+
 // Enable CORS
 app.use('/*', cors())
 
