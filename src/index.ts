@@ -8,7 +8,8 @@ import {
   getTimelineTweetInfo,
   batchCheckTweetUrls,
   fetchSearchSuggestionAsync,
-  getTransactionIdAsync
+  getTransactionIdAsync,
+  fetchUserByScreenNameTestAsync
 } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
@@ -409,6 +410,27 @@ app.get('/api/user-by-screen-name', async (c) => {
 
   } catch (error) {
     Log.error('/api/user-by-screen-name Error:', error);
+    return c.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
+app.get('/api/user-by-screen-name-test', async (c) => {
+  try {
+    const screenName = c.req.query('screen_name');
+
+    if (!screenName) {
+      return c.json({ error: 'screen_name parameter is required' }, 400);
+    }
+
+    const json = await fetchUserByScreenNameTestAsync(screenName);
+
+    return c.json(json);
+
+  } catch (error) {
+    Log.error('/api/user-by-screen-name-test Error:', error);
     return c.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'

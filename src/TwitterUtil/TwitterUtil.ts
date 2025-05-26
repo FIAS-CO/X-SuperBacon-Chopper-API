@@ -321,6 +321,49 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
     return user;
 }
 
+export async function fetchUserByScreenNameTestAsync(screenName: string): Promise<any> {
+    const authTokenSet = await authTokenService.getRequiredTokenSet();
+    const endpoint = "/i/api/graphql/1VOOyvKkiI3FMmkeDNxM9A/UserByScreenName";
+    const transactionId = await getTransactionIdAsync("GET", endpoint);
+    const referer = `https://x.com/${screenName}`;
+    const headers = await createHeaderWithTransactionId(authTokenSet, referer, transactionId);
+
+    const userParams = new URLSearchParams({
+        "variables": JSON.stringify({
+            "screen_name": screenName
+        }),
+        "features": JSON.stringify({
+            "hidden_profile_subscriptions_enabled": true,
+            "profile_label_improvements_pcf_label_in_post_enabled": true,
+            "rweb_tipjar_consumption_enabled": true,
+            "verified_phone_label_enabled": false,
+            "subscriptions_verification_info_is_identity_verified_enabled": true,
+            "subscriptions_verification_info_verified_since_enabled": true,
+            "highlights_tweets_tab_ui_enabled": true,
+            "responsive_web_twitter_article_notes_tab_enabled": true,
+            "subscriptions_feature_can_gift_premium": true,
+            "creator_subscriptions_tweet_preview_api_enabled": true,
+            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
+            "responsive_web_graphql_timeline_navigation_enabled": true
+        }),
+        "fieldToggles": JSON.stringify({
+            "withAuxiliaryUserLabels": true
+        })
+    });
+
+    const userResponse = await fetch(
+        `https://x.com${endpoint}?${userParams}`,
+        { headers }
+    );
+    authTokenService.updateRateLimit(authTokenSet.token, userResponse.headers);
+
+    if (!userResponse.ok) {
+        return await handleTwitterApiError(userResponse, authTokenSet.token, 'UserByScreenName');
+    }
+
+    return await userResponse.json();
+}
+
 
 export async function fetchSearchTimelineAsync(screenName: string): Promise<any> {
     const tryFetch = async (retryCount = 0): Promise<any> => {
