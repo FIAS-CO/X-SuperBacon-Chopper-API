@@ -725,6 +725,7 @@ app.get('/api/auth-token-info', async (c) => {
 
 app.get('/api/decrypt-ip', async (c: Context) => {
   try {
+    Log.info('Test decrypt IP request received');
     const encryptedIp = c.req.query('key'); // クエリパラメータから取得
     const ip = encryptedIp ? await serverDecryption.decrypt(encryptedIp) : '';
 
