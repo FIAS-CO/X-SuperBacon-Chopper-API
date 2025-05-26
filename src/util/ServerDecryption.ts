@@ -62,7 +62,8 @@ export class ServerDecryption {
 
             return new TextDecoder().decode(decryptedBuffer);
         } catch (error) {
-            Log.error('Decryption error:', encryptedData, error);
+            Log.error('Decryption error:', error);
+            Log.error('Encrypted data:', encryptedData);
             return '';
         }
     }
