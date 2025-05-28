@@ -202,6 +202,7 @@ export async function checkTweetStatus(url: string, isRecursive: boolean): Promi
 
         // その他のエラーレスポンスの場合
         if (!response.ok) {
+            Log.error(`Error fetching oEmbed data for URL: ${cleanedUrl}`, response.status, response.statusText);
             return {
                 code: response.status as StatusCode,
                 status: 'UNKNOWN',
