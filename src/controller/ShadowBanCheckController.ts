@@ -2,7 +2,7 @@ import { Context } from 'hono';
 import { serverDecryption } from '../util/ServerDecryption';
 import { shadowBanCheckService } from '../service/ShadowBanCheckService';
 import { Log } from '../util/Log';
-import { discordNotifyService } from '../service/DiscordNotifyService';
+import { DiscordChannel, discordNotifyService } from '../service/DiscordNotifyService';
 import { respondWithError } from '../util/Response';
 import { DelayUtil } from '../util/DelayUtil';
 import { setBlockInfo } from '../util/AccessLogHelper';
@@ -143,7 +143,7 @@ export class ShadowBanCheckController {
 **Referer:** ${referer}
         `.trim();
 
-        await discordNotifyService.sendMessage(message);
+        await discordNotifyService.sendMessage(message, DiscordChannel.INVALID_URL_PARAM);
     }
 
     static async notifyInvalidTurnstileToken(screenName: string | undefined,
@@ -164,6 +164,6 @@ export class ShadowBanCheckController {
 ${errorCodesList}
         `.trim();
 
-        await discordNotifyService.sendMessage(message);
+        await discordNotifyService.sendMessage(message, DiscordChannel.INVALID_URL_PARAM);
     }
 }

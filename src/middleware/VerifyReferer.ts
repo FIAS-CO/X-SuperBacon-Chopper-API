@@ -1,6 +1,6 @@
 import { Context, Next } from 'hono';
 import { respondWithError } from '../util/Response';
-import { discordNotifyService } from '../service/DiscordNotifyService';
+import { DiscordChannel, discordNotifyService } from '../service/DiscordNotifyService';
 import { DelayUtil } from '../util/DelayUtil';
 import { Log } from '../util/Log';
 import { setBlockInfo, BlockReasons } from '../util/AccessLogHelper';
@@ -97,5 +97,5 @@ async function notifySuspiciousDomain(data: NotifyData): Promise<void> {
 **Referer:** ${data.referer}
     `.trim();
 
-    await discordNotifyService.sendMessage(message);
+    await discordNotifyService.sendMessage(message, DiscordChannel.INVALID_URL_PARAM);
 }

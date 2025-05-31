@@ -3,7 +3,7 @@ import { ErrorCodes } from '../errors/ErrorCodes';
 import { ipAccessControlService } from '../service/IpAccessControlService';
 import { systemSettingService } from '../service/SystemSettingService';
 import { respondWithError } from '../util/Response';
-import { discordNotifyService } from '../service/DiscordNotifyService';
+import { DiscordChannel, discordNotifyService } from '../service/DiscordNotifyService';
 import { DelayUtil } from '../util/DelayUtil';
 import { Log } from '../util/Log';
 import { setBlockInfo, BlockReasons } from '../util/AccessLogHelper';
@@ -77,7 +77,7 @@ async function notifyInvalidIp(screenName: string | undefined, checkSearchBan: b
 **Connection IP:** ${connectionIp ?? 'No Connection IP'}
         `.trim();
 
-    await discordNotifyService.sendMessage(message);
+    await discordNotifyService.sendMessage(message, DiscordChannel.IP_ACCESS_BLOCK);
 }
 
 
@@ -111,5 +111,5 @@ async function notifyAccessIssue(
 **Connection IP:** ${connectionIp}
         `.trim();
 
-    await discordNotifyService.sendMessage(message);
+    await discordNotifyService.sendMessage(message, DiscordChannel.ACCESS_CONTROL_BLOCK);
 }

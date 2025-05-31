@@ -1,7 +1,7 @@
 import { Context, Next } from 'hono'
 import { PowService } from '../service/PowService'
 import { Log } from '../util/Log'
-import { discordNotifyService } from '../service/DiscordNotifyService'
+import { DiscordChannel, discordNotifyService } from '../service/DiscordNotifyService'
 import { DelayUtil } from '../util/DelayUtil'
 import { respondWithError } from '../util/Response'
 import { setBlockInfo, BlockReasons } from '../util/AccessLogHelper'
@@ -80,5 +80,5 @@ async function notifyPowFailed(data: NotifyData): Promise<void> {
 **Connection IP:** ${data.connectionIp}
     `.trim();
 
-    await discordNotifyService.sendMessage(message);
+    await discordNotifyService.sendMessage(message, DiscordChannel.INVALID_URL_PARAM);
 }

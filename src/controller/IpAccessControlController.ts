@@ -2,7 +2,7 @@ import { Context } from 'hono';
 import { ipAccessControlService } from '../service/IpAccessControlService';
 import { Log } from '../util/Log';
 import { respondWithDetailedError } from '../util/Response';
-import { discordNotifyService } from '../service/DiscordNotifyService';
+import { DiscordChannel, discordNotifyService } from '../service/DiscordNotifyService';
 import { IP_ACCESS_TYPE } from '../types/Types';
 
 export class IpAccessControlController {
@@ -210,7 +210,7 @@ async function notifyIpListReplaced(type: string, count: number): Promise<void> 
 **操作:** 既存リスト削除後に新規登録
         `.trim();
 
-    await discordNotifyService.sendMessage(message);
+    await discordNotifyService.sendMessage(message, DiscordChannel.ACCESS_CONTROL_INFO);
 }
 
 /**
@@ -224,7 +224,7 @@ async function notifyIpListAdded(type: string, count: number): Promise<void> {
 **操作:** 既存リストに追加
         `.trim();
 
-    await discordNotifyService.sendMessage(message);
+    await discordNotifyService.sendMessage(message, DiscordChannel.ACCESS_CONTROL_INFO);
 }
 
 /**
@@ -238,5 +238,5 @@ async function notifyIpListDeleted(type: string, count: number): Promise<void> {
 **操作:** 既存リスト削除
         `.trim();
 
-    await discordNotifyService.sendMessage(message);
+    await discordNotifyService.sendMessage(message, DiscordChannel.ACCESS_CONTROL_INFO);
 }

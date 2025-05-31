@@ -1,6 +1,6 @@
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { Context, MiddlewareHandler } from 'hono';
-import { discordNotifyService } from '../service/DiscordNotifyService';
+import { DiscordChannel, discordNotifyService } from '../service/DiscordNotifyService';
 import { serverDecryption } from '../util/ServerDecryption';
 import { respondWithError } from '../util/Response';
 import { Log } from '../util/Log';
@@ -108,7 +108,7 @@ async function notifyRateLimit(
 **Connection IP:** ${connectionIp}
     `.trim();
 
-    await discordNotifyService.sendMessage(message);
+    await discordNotifyService.sendMessage(message, DiscordChannel.LOAD_DETECTION);
 }
 
 function rateLimitExceededResponse(c: Context): Response {

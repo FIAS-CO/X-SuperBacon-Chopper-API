@@ -1,6 +1,6 @@
 import { Context, Next } from 'hono'
 import { Log } from '../util/Log'
-import { discordNotifyService } from '../service/DiscordNotifyService'
+import { DiscordChannel, discordNotifyService } from '../service/DiscordNotifyService'
 import { DelayUtil } from '../util/DelayUtil'
 import { respondWithError } from '../util/Response'
 import { ErrorCodes } from '../errors/ErrorCodes'
@@ -38,5 +38,5 @@ async function notifyParamlessRequest(screenName: string | undefined, checkSearc
 **Connection IP:** ${connectionIp ?? 'No Connection IP'}
         `.trim();
 
-    await discordNotifyService.sendMessage(message);
+    await discordNotifyService.sendMessage(message, DiscordChannel.INVALID_URL_PARAM);
 }

@@ -1,4 +1,4 @@
-import { discordNotifyService } from "../service/DiscordNotifyService";
+import { DiscordChannel, discordNotifyService } from "../service/DiscordNotifyService";
 import { AccessSettings } from "../types/Types";
 
 export class SystemSettingsUtil {
@@ -11,7 +11,7 @@ export class SystemSettingsUtil {
 Aegisは現在: ${enabled ? '有効' : '無効'}
     `.trim();
 
-        await discordNotifyService.sendMessage(message);
+        await discordNotifyService.sendMessage(message, DiscordChannel.ACCESS_CONTROL_INFO);
     }
 
     static async notifyAegisTriggeredByAccessSpike(): Promise<void> {
@@ -20,7 +20,7 @@ Aegisは現在: ${enabled ? '有効' : '無効'}
     30分で500アクセスがあったのでブラックリストとホワイトリストを有効にしました。
         `.trim();
 
-        await discordNotifyService.sendMessage(message);
+        await discordNotifyService.sendMessage(message, DiscordChannel.ACCESS_CONTROL_INFO);
     }
 
     static async notifyAccessSettingsChange(settings: AccessSettings): Promise<void> {
@@ -31,7 +31,7 @@ Aegisは現在: ${enabled ? '有効' : '無効'}
 **モード説明:** ${this.getAccessModeDescription(settings)}
         `.trim();
 
-        await discordNotifyService.sendMessage(message);
+        await discordNotifyService.sendMessage(message, DiscordChannel.ACCESS_CONTROL_INFO);
     }
 
     /**

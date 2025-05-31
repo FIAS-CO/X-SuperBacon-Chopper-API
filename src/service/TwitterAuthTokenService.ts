@@ -2,7 +2,7 @@ import prisma from "../db";
 import { AuthTokenSet } from "../types/Types";
 import { DateUtil } from "../util/DateUtil";
 import { Log } from "../util/Log";
-import { discordNotifyService } from "./DiscordNotifyService";
+import { DiscordChannel, discordNotifyService } from "./DiscordNotifyService";
 
 export class TwitterAuthTokenService {
     /**
@@ -140,7 +140,7 @@ export class TwitterAuthTokenService {
 🗑️ **認証トークンが削除されました**
 **Token:** ${token.substring(0, 5)}...${token.substring(token.length - 5)}
 **Account:** ${deletedToken.accountId}
-            `);
+            `, DiscordChannel.TOKEN_RELATED);
 
             return deletedToken;
         } catch (error) {
@@ -279,7 +279,7 @@ export class TwitterAuthTokenService {
 **Reset Time:** ${resetTime}
         `.trim();
 
-        await discordNotifyService.sendMessage(message);
+        await discordNotifyService.sendMessage(message, DiscordChannel.TOKEN_RELATED);
     }
 
     async notifyRateLimitWithRateRemaining(authToken: string, resetTime: string): Promise<void> {
@@ -291,7 +291,7 @@ export class TwitterAuthTokenService {
 **Reset Time:** ${resetTime}
         `.trim();
 
-        await discordNotifyService.sendMessage(message);
+        await discordNotifyService.sendMessage(message, DiscordChannel.TOKEN_RELATED);
     }
 }
 
