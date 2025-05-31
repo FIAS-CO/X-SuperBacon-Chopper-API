@@ -40,6 +40,105 @@ export class IpAccessControlService {
     }
 
     /**
+     * ブラックリストを削除
+     */
+    async deleteBlacklist(): Promise<{
+        count: number;
+    }> {
+        return this.deleteList(IP_ACCESS_TYPE.BLACKLIST);
+    }
+
+    /**
+     * ホワイトリストを削除
+     */
+    async deleteWhitelist(): Promise<{
+        count: number;
+    }> {
+        return this.deleteList(IP_ACCESS_TYPE.WHITELIST);
+    }
+
+    private async deleteList(type: IpAccessType): Promise<{
+        count: number;
+    }> {
+        try {
+            const result = await prisma.ipAccessControl.deleteMany({
+                where: { type }
+            });
+
+            Log.info(`${type} deleted, count: ${result.count}`);
+
+            return {
+                count: result.count
+            };
+        } catch (error) {
+            Log.error(`Error deleting ${type}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * ブラックリストにIPを追加
+     */
+    async addBlacklist(ips: string[]): Promise<{
+        count: number;
+        added: string[];
+    }> {
+        return this.addList(IP_ACCESS_TYPE.BLACKLIST, ips);
+    }
+
+    /**
+     * ホワイトリストにIPを追加
+     */
+    async addWhitelist(ips: string[]): Promise<{
+        count: number;
+        added: string[];
+    }> {
+        return this.addList(IP_ACCESS_TYPE.WHITELIST, ips);
+    }
+
+    private async addList(type: IpAccessType, ips: string[]): Promise<{
+        count: number;
+        added: string[];
+    }> {
+        const added: string[] = [];
+
+        try {
+            await prisma.$transaction(async (prisma) => {
+                const existingEntries = await prisma.ipAccessControl.findMany({
+                    where: {
+                        ip: { in: ips },
+                        type
+                    },
+                    select: { ip: true }
+                });
+
+                const existingIps = new Set(existingEntries.map(entry => entry.ip));
+                const newIps = ips.filter(ip => !existingIps.has(ip));
+
+                if (newIps.length > 0) {
+                    await prisma.ipAccessControl.createMany({
+                        data: newIps.map(ip => ({
+                            ip,
+                            type
+                        }))
+                    });
+                    added.push(...newIps);
+                }
+            });
+
+            Log.info(`${type} added ${added.length} IPs`);
+
+            return {
+                count: added.length,
+                added
+            };
+        } catch (error) {
+            Log.error(`Error adding to ${type}:`, error);
+            throw error;
+        }
+    }
+
+    /**
      * ブラックリストを完全に置き換える
      */
     async replaceBlacklist(ips: string[]) {

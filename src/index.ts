@@ -376,6 +376,12 @@ app.get('/api/ip-access-control/whitelist', IpAccessControlController.getWhiteli
 app.post('/api/ip-access-control/blacklist', IpAccessControlController.replaceBlacklist);
 app.post('/api/ip-access-control/whitelist', IpAccessControlController.replaceWhitelist);
 
+app.post('/api/ip-access-control/add-blacklist', IpAccessControlController.addBlacklist);
+app.post('/api/ip-access-control/add-whitelist', IpAccessControlController.addWhitelist);
+
+app.delete('/api/ip-access-control/delete-blacklist', IpAccessControlController.deleteBlacklist);
+app.delete('/api/ip-access-control/delete-whitelist', IpAccessControlController.deleteWhitelist);
+
 app.get('/api/system-control/get-settings', SystemSettingController.getSystemSettings);
 
 app.get('/api/system-control/enable-blacklist', SystemSettingController.enableBlacklist);
