@@ -1,5 +1,4 @@
 import { Context } from 'hono';
-import { serverDecryption } from '../util/ServerDecryption';
 import { shadowBanCheckService } from '../service/ShadowBanCheckService';
 import { Log } from '../util/Log';
 import { DiscordChannel, discordNotifyService } from '../service/DiscordNotifyService';
@@ -9,94 +8,35 @@ import { setBlockInfo } from '../util/AccessLogHelper';
 
 export class ShadowBanCheckController {
     static async checkByUser(c: Context) {
+        // Contextから既にパース済みのデータを取得
+        const data = c.get('requestData') || {};
 
-        return respondWithError(c, 'Internal server error', 9998, 500);
-        // let screenName: string | undefined = undefined;
+        // リクエストパラメータの取得(存在するかの検証はmiddlewareで行う)
+        const screenName = data.screen_name;
+        const checkSearchBan = data.searchban;
+        const checkRepost = data.repost;
+        const ip = c.get('ip') || '';
 
-        // try {
-        //     const data = await c.req.json();
-        //     // リクエストパラメータの取得と検証
-        //     screenName = data.screen_name;
-        //     const checkSearchBan = data.searchban;
-        //     const checkRepost = data.repost;
-        //     const encryptedIp = data.key;
-        //     const ip = encryptedIp ? serverDecryption.decrypt(encryptedIp) : '';
+        try {
+            const result = await shadowBanCheckService.checkShadowBanStatus(
+                screenName,
+                ip,
+                checkSearchBan,
+                checkRepost
+            );
 
-        //     // 接続元IPを取得（プロキシやロードバランサー経由のリクエストに対応）
-        //     const connectionIp = c.req.header('x-forwarded-for') ||
-        //         c.req.raw.headers.get('x-forwarded-for') ||
-        //         c.req.header('x-real-ip') ||
-        //         c.env?.remoteAddress ||
-        //         'unknown';
+            return c.json(result);
+        } catch (error) {
+            Log.error('/api/check-by-userの不明なエラー:', error);
+            setBlockInfo(c, "unknown", 9999);
+            await discordNotifyService.notifyError(
+                error instanceof Error ? error : new Error(String(error)),
+                `API: check-by-user (screenName: ${screenName})`
+            );
+            await DelayUtil.randomDelay();
 
-        //     if (!screenName || checkSearchBan == null || checkRepost == null || !encryptedIp) {
-        //         Log.error('パラメータが足りないcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
-        //         await ShadowBanCheckController.notifyParamlessRequest(screenName, checkSearchBan, checkRepost, ip, connectionIp);
-        //         return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_CHECK_BY_USER_PARAMS, 400);
-        //     }
-
-        //     if (!ShadowBanCheckController.isValidIpFormat(ip)) {
-        //         Log.error('IPが不正なcheck-by-userへのアクセスがあったので防御しました。', { screenName, checkSearchBan, checkRepost, ip });
-        //         await ShadowBanCheckController.notifyInvalidIp(screenName, checkSearchBan, checkRepost, ip, connectionIp);
-        //         return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_IP_FORMAT);
-        //     }
-
-        //     const turnstileToken = data.turnstileToken;
-        //     if (!turnstileToken) {
-        //         const headers = c.req.raw.headers;
-        //         const userAgent = headers.get('user-agent') || 'なし';
-        //         const referer = headers.get('referer') || 'なし';
-
-        //         Log.error('APIを直接叩けなくするためのトークンがないcheck-by-userへのアクセスがあったので防御しました。'
-        //             , { screenName, checkSearchBan, checkRepost, ip, connectionIp, userAgent, referer });
-        //         await ShadowBanCheckController.notifyNoTurnstileToken(screenName, checkSearchBan, checkRepost, ip, connectionIp, userAgent, referer);
-        //         return respondWithError(c, 'Validation failed.', ErrorCodes.MISSING_TURNSTILE_TOKEN);
-        //     }
-
-        //     const validator = new TurnstileValidator(process.env.TURNSTILE_SECRET_KEY!);
-        //     const verificationResult = await validator.verify(turnstileToken, ip);
-
-        //     if (!verificationResult.isValid) {
-        //         // エラーコードを含めてログ出力
-        //         Log.error('APIを直接叩けなくするためのトークンが無効なcheck-by-userへのアクセスがありました。',
-        //             { screenName, checkSearchBan, checkRepost, ip, errorCodes: verificationResult.errorCodes });
-
-        //         // Discordへの通知にエラーコードを含める
-        //         await ShadowBanCheckController.notifyInvalidTurnstileToken(
-        //             screenName,
-        //             checkSearchBan,
-        //             checkRepost,
-        //             ip,
-        //             connectionIp,
-        //             verificationResult.errorCodes
-        //         );
-
-        //         // エラーコードに基づいて適切なエラーレスポンスを返す
-        //         if (verificationResult.errorCodes?.includes("timeout-or-duplicate")) {
-        //             return respondWithError(c, 'Validation failed.', ErrorCodes.DUPLICATE_TURNSTILE_TOKEN);
-        //         } else {
-        //             return respondWithError(c, 'Validation failed.', ErrorCodes.INVALID_TURNSTILE_TOKEN);
-        //         }
-        //     }
-        //     const result = await shadowBanCheckService.checkShadowBanStatus(
-        //         screenName,
-        //         ip,
-        //         checkSearchBan,
-        //         checkRepost
-        //     );
-
-        //     return c.json(result);
-
-        // } catch (error) {
-        //     Log.error('/api/check-by-userの不明なエラー:', error);
-
-        //     await discordNotifyService.notifyError(
-        //         error instanceof Error ? error : new Error(String(error)),
-        //         `API: check-by-user (screenName: ${screenName})`
-        //     );
-
-        //     return respondWithError(c, 'Internal server error', 9999, 500);
-        // }
+            return respondWithError(c, 'Internal server error', 9999, 500);
+        }
     }
 
     static async checkByUserInner(c: Context) {
