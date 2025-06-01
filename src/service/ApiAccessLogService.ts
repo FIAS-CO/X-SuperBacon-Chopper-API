@@ -1,4 +1,5 @@
 import prisma from "../db";
+import { DateUtil } from "../util/DateUtil";
 import { Log } from "../util/Log";
 
 interface AccessLogData {
@@ -80,7 +81,7 @@ export class ApiAccessLogService {
             if (statusMax !== undefined) where.responseStatus.lte = statusMax;
         }
 
-        return await prisma.apiAccessLog.findMany({
+        const logs = await prisma.apiAccessLog.findMany({
             where,
             orderBy: {
                 [orderBy]: orderDirection,
@@ -88,6 +89,12 @@ export class ApiAccessLogService {
             take: limit,
             skip: offset
         });
+
+        const logsWithJST = logs.map(log => ({
+            ...log, timestamp: DateUtil.formatJST(log.timestamp)
+        }));
+
+        return logsWithJST;
     }
 }
 
