@@ -178,6 +178,31 @@ export class TwitterAuthTokenService {
         this.notifyRateLimitWithRateRemaining(token, resetTimeJst);
     }
 
+    async banTokenFor24HoursByAccountTrouble(): Promise<void> {
+        const token = await this.getRequiredTokenSet().then(tokenSet => tokenSet.token);
+
+        // 現在時刻の24時間後を計算
+        const resetTime = new Date();
+        resetTime.setHours(resetTime.getHours() + 24);
+
+        // トークンのresetTimeを更新
+        await prisma.authToken.update({
+            where: {
+                token: token
+            },
+            data: {
+                resetTime: resetTime
+            }
+        });
+
+        const resetTimeJst = DateUtil.formatJST(resetTime)
+        // TODO ログにアカウント名を含める
+        // ログ出力
+        Log.warn(`Token banned until ${resetTimeJst}.`);
+
+        this.notifyRateLimitWithAccountTrouble(token, resetTimeJst);
+    }
+
     async notifyNoToken(): Promise<void> {
         const tokens = await authTokenService.getAllTokens();
 
@@ -286,6 +311,18 @@ export class TwitterAuthTokenService {
         const account = await authTokenService.getAccountIdByToken(authToken);
         const message = `
 📢 **リメインが残っているのにトークンのレートが制限されたよ。対応は不要だよ。**
+**Token:** ${authToken}
+**Account:** ${account}
+**Reset Time:** ${resetTime}
+        `.trim();
+
+        await discordNotifyService.sendMessage(message, DiscordChannel.TOKEN_RELATED);
+    }
+
+    async notifyRateLimitWithAccountTrouble(authToken: string, resetTime: string): Promise<void> {
+        const account = await authTokenService.getAccountIdByToken(authToken);
+        const message = `
+📢 **アカウントに何かエラーっぽい挙動があったので制限したよ。アカウントを確認してください。**
 **Token:** ${authToken}
 **Account:** ${account}
 **Reset Time:** ${resetTime}

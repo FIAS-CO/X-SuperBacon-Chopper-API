@@ -4,6 +4,7 @@ import { ShadowBanCheckResult } from '../types/ShadowBanCheckResult';
 import { generateRandomHexString } from '../FunctionUtil';
 import { ShadowbanHistoryService } from './ShadowbanHistoryService';
 import { PerformanceMonitor } from '../util/PerformanceMonitor';
+import { authTokenService } from './TwitterAuthTokenService';
 
 export class ShadowBanCheckService {
     async checkShadowBanStatus(
@@ -42,7 +43,7 @@ export class ShadowBanCheckService {
         result.api_status.userSearchGroup.rate_limit = false;
 
         monitor.startOperation('fetchUser');
-        const user = await fetchUserByScreenNameAsync(screenName);
+        let user = await fetchUserByScreenNameAsync(screenName);
         monitor.endOperation('fetchUser');
 
         const service = new ShadowbanHistoryService();
@@ -53,6 +54,43 @@ export class ShadowBanCheckService {
             await service.createHistory(screenName, result, sessionId, ip);
 
             return result
+        }
+
+        // user.resultがundefinedの場合のリトライ処理
+        if (!user.result) {
+            Log.error(`user.result is undefined for screenName: ${screenName}`, user);
+
+            const maxRetries = 3;
+            let retryCount = 0;
+
+            while (!user.result && retryCount < maxRetries) {
+                // 現在使用中のトークンをバン
+                await authTokenService.banTokenFor24HoursByAccountTrouble();
+
+                // 少し待機してから再試行
+                await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+
+                Log.warn(`Retry ${retryCount + 1}/${maxRetries} for screenName: ${screenName}`);
+
+                // 再度APIを呼び出し
+                user = await fetchUserByScreenNameAsync(screenName);
+                retryCount++;
+
+                if (!user) {
+                    Log.error(`Retry ${retryCount} returned null for screenName: ${screenName}`);
+                    result.not_found = true;
+                    await service.createHistory(screenName, result, sessionId, ip);
+                    return result;
+                }
+            }
+
+            // 最終的に失敗した場合
+            if (!user.result) {
+                Log.error(`All retries failed for screenName: ${screenName}. Total attempts: ${retryCount + 1}`);
+                result.not_found = true;
+                await service.createHistory(screenName, result, sessionId, ip);
+                return result;
+            }
         }
 
         result.user = user.result;
