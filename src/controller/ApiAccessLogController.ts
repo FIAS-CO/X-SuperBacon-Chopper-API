@@ -11,8 +11,9 @@ export class ApiAccessLogController {
         try {
             const query = c.req.query();
 
+            const limitParam = query.limit;
             const logs = await apiAccessLogService.getLogs({
-                limit: query.limit ? parseInt(query.limit) : 100,
+                limit: (limitParam === 'all') ? undefined : (limitParam ? parseInt(limitParam) : 100),
                 offset: query.offset ? parseInt(query.offset) : 0,
                 endpoint: query.endpoint,
                 method: query.method,
