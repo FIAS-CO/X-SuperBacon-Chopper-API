@@ -9,7 +9,8 @@ import {
   batchCheckTweetUrls,
   fetchSearchSuggestionAsync,
   getTransactionIdAsync,
-  fetchUserByScreenNameTestAsync
+  fetchUserByScreenNameTestAsync,
+  fetchUserByScreenNameAsHtmlAsync
 } from './TwitterUtil/TwitterUtil'
 import prisma from './db'
 import { expandUrl } from './UrlUtil'
@@ -413,6 +414,48 @@ app.get('/api/user-by-screen-name', async (c) => {
     const json = await fetchUserByScreenNameAsync(screenName);
 
     return c.json(json);
+
+  } catch (error) {
+    Log.error('/api/user-by-screen-name Error:', error);
+    return c.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
+app.get('/api/user-by-screen-name2', async (c) => {
+  try {
+    const screenName = c.req.query('screen_name');
+    if (!screenName) {
+      return c.json({ error: 'screen_name parameter is required' }, 400);
+    }
+
+    // 1回だけアクセスしてレスポンスを取得
+    const responseText = await fetchUserByScreenNameAsHtmlAsync(screenName);
+
+    // HTMLかどうかを判定
+    if (responseText.includes('<!DOCTYPE html>') || responseText.includes('<html')) {
+      // HTMLの場合はそのまま返す
+      return new Response(responseText, {
+        headers: {
+          'Content-Type': 'text/html; charset=UTF-8',
+        },
+      });
+    }
+
+    // JSONの場合はパースして返す
+    try {
+      const jsonData = JSON.parse(responseText);
+      const user = jsonData.data?.user;
+      return c.json(user);
+    } catch (parseError) {
+      Log.error('Failed to parse response as JSON:', parseError);
+      return c.json({
+        error: 'Invalid response format',
+        details: 'Response is neither valid HTML nor JSON'
+      }, 500);
+    }
 
   } catch (error) {
     Log.error('/api/user-by-screen-name Error:', error);
