@@ -274,7 +274,7 @@ app.get('/api/get-history-by-session-id', async (c: Context) => {
 })
 
 app.post('/api/check-by-user', requestParser, accessLogger, aegisMonitor, checkByUserParamExists, verifyIpAccess, rateLimit, pow, verifyReferer, ShadowBanCheckController.checkByUser);
-app.post('/api/check-by-user-inner', requestParser, accessLogger, aegisMonitor, checkByUserParamExists, verifyIpAccess, rateLimit, pow, verifyReferer, ShadowBanCheckController.checkByUserInner);
+app.post('/api/check-by-user-inner', requestParser, accessLogger, ShadowBanCheckController.checkByUserInner);
 
 app.get('/api/searchtimeline', async (c: Context) => {
   try {
