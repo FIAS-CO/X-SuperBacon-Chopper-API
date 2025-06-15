@@ -1,7 +1,6 @@
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { Context, MiddlewareHandler } from 'hono';
 import { DiscordChannel, discordNotifyService } from '../service/DiscordNotifyService';
-import { serverDecryption } from '../util/ServerDecryption';
 import { respondWithError } from '../util/Response';
 import { Log } from '../util/Log';
 import { ErrorCodes } from '../errors/ErrorCodes';
@@ -21,9 +20,9 @@ const middleRateLimiter = new RateLimiterMemory({
 });
 
 const shortRateLimiter = new RateLimiterMemory({
-    points: 5,             // 5回まで許可
+    points: 10,            // 10回まで許可
     duration: 60,          // 60秒（=1分）ごとにリセット
-    blockDuration: 1800    // 超過時は1800秒（=30分）ブロック
+    blockDuration: 300     // 超過時は300秒（=5分）ブロック
 });
 
 const veryShortRateLimiter = new RateLimiterMemory({
@@ -97,7 +96,7 @@ async function notifyRateLimit(
     Log.info(`Rate limit exceeded for IP: ${ip} on ${limiterName} limiter`);
     const limitDetail = limiterName === 'Long' ? '20分で40回まで許容。6時間ブロック'
         : limiterName === 'Middle' ? '2分で9回まで許容。30分ブロック'
-            : limiterName === 'Short' ? '1分で5回まで許容。30分ブロック'
+            : limiterName === 'Short' ? '1分で10回まで許容。5分ブロック'
                 : '2秒で4回まで許容。30分ブロック';
 
     const message = `
