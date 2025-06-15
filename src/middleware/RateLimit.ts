@@ -14,9 +14,9 @@ const longRateLimiter = new RateLimiterMemory({
 });
 
 const middleRateLimiter = new RateLimiterMemory({
-    points: 9,             // 9回まで許可
+    points: 15,            // 15回まで許可
     duration: 120,         // 120秒（=2分）ごとにリセット
-    blockDuration: 1800    // 超過時は1800秒（=30分）ブロック
+    blockDuration: 300     // 超過時は300秒（=5分）ブロック
 });
 
 const shortRateLimiter = new RateLimiterMemory({
@@ -95,7 +95,7 @@ async function notifyRateLimit(
 ): Promise<void> {
     Log.info(`Rate limit exceeded for IP: ${ip} on ${limiterName} limiter`);
     const limitDetail = limiterName === 'Long' ? '20分で40回まで許容。6時間ブロック'
-        : limiterName === 'Middle' ? '2分で9回まで許容。30分ブロック'
+        : limiterName === 'Middle' ? '2分で15回まで許容。5分ブロック'
             : limiterName === 'Short' ? '1分で10回まで許容。5分ブロック'
                 : '2秒で4回まで許容。30分ブロック';
 
