@@ -30,6 +30,39 @@ export class ShadowbanHistoryService {
         }
     }
 
+    async getHistory(limitParam: string): Promise<any[]> {
+        const limit = (limitParam === 'all') ? undefined : (limitParam ? parseInt(limitParam) : 100);
+        const history = await prisma.shadowBanCheck.findMany({
+            take: limit,
+            orderBy: {
+                id: 'desc',
+            }
+        })
+
+        function toJST(date: Date) {
+            return date.toLocaleString('ja-JP', {
+                timeZone: 'Asia/Tokyo',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            }) + ' JST'
+        }
+
+        // UTCから日本時間に変換
+        const historyWithJST = history.map(({ ...record }) => {
+            const date = toJST(new Date(record.date))
+            return {
+                ...record,
+                date: date,
+            }
+        })
+
+        return historyWithJST;
+    }
+
     async getHistoryById(sessionId: string): Promise<any> {
         try {
             const checkResults = await prisma.shadowBanCheck.findFirst({
