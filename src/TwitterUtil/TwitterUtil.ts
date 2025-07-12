@@ -279,7 +279,7 @@ export function extractTweetId(url: string): string {
 
 export async function fetchUserByScreenNameAsync(screenName: string): Promise<any> {
     const authTokenSet = await authTokenService.getRequiredTokenSet();
-    const endpoint = "/i/api/graphql/1VOOyvKkiI3FMmkeDNxM9A/UserByScreenName";
+    const endpoint = "/i/api/graphql/x3RLKWW1Tl7JgU7YtGxuzw/UserByScreenName";
     const transactionId = await getTransactionIdAsync("GET", endpoint);
     const referer = `https://x.com/${screenName}`;
     const headers = await createHeaderWithTransactionId(authTokenSet, referer, transactionId);
@@ -289,7 +289,9 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
             "screen_name": screenName
         }),
         "features": JSON.stringify({
+            "responsive_web_grok_bio_auto_translation_is_enabled": false,
             "hidden_profile_subscriptions_enabled": true,
+            "payments_enabled": false,
             "profile_label_improvements_pcf_label_in_post_enabled": true,
             "rweb_tipjar_consumption_enabled": true,
             "verified_phone_label_enabled": false,
@@ -324,7 +326,7 @@ export async function fetchUserByScreenNameAsync(screenName: string): Promise<an
 
 export async function fetchUserByScreenNameAsHtmlAsync(screenName: string): Promise<string> {
     const authTokenSet = await authTokenService.getRequiredTokenSet();
-    const endpoint = "/i/api/graphql/1VOOyvKkiI3FMmkeDNxM9A/UserByScreenName";
+    const endpoint = "/i/api/graphql/x3RLKWW1Tl7JgU7YtGxuzw/UserByScreenName";
     const transactionId = await getTransactionIdAsync("GET", endpoint);
     const referer = `https://x.com/${screenName}`;
     const headers = await createHeaderWithTransactionId(authTokenSet, referer, transactionId);
@@ -333,7 +335,9 @@ export async function fetchUserByScreenNameAsHtmlAsync(screenName: string): Prom
             "screen_name": screenName
         }),
         "features": JSON.stringify({
+            "responsive_web_grok_bio_auto_translation_is_enabled": false,
             "hidden_profile_subscriptions_enabled": true,
+            "payments_enabled": false,
             "profile_label_improvements_pcf_label_in_post_enabled": true,
             "rweb_tipjar_consumption_enabled": true,
             "verified_phone_label_enabled": false,
@@ -361,7 +365,7 @@ export async function fetchUserByScreenNameAsHtmlAsync(screenName: string): Prom
 
 export async function fetchUserByScreenNameTestAsync(screenName: string): Promise<any> {
     const authTokenSet = await authTokenService.getRequiredTokenSet();
-    const endpoint = "/i/api/graphql/1VOOyvKkiI3FMmkeDNxM9A/UserByScreenName";
+    const endpoint = "/i/api/graphql/x3RLKWW1Tl7JgU7YtGxuzw/UserByScreenName";
     const transactionId = await getTransactionIdAsync("GET", endpoint);
     const referer = `https://x.com/${screenName}`;
     const headers = await createHeaderWithTransactionId(authTokenSet, referer, transactionId);
@@ -371,7 +375,9 @@ export async function fetchUserByScreenNameTestAsync(screenName: string): Promis
             "screen_name": screenName
         }),
         "features": JSON.stringify({
+            "responsive_web_grok_bio_auto_translation_is_enabled": false,
             "hidden_profile_subscriptions_enabled": true,
+            "payments_enabled": false,
             "profile_label_improvements_pcf_label_in_post_enabled": true,
             "rweb_tipjar_consumption_enabled": true,
             "verified_phone_label_enabled": false,
@@ -401,7 +407,6 @@ export async function fetchUserByScreenNameTestAsync(screenName: string): Promis
 
     return await userResponse.json();
 }
-
 
 export async function fetchSearchTimelineAsync(screenName: string): Promise<any> {
     const tryFetch = async (retryCount = 0): Promise<any> => {
@@ -469,7 +474,8 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
         return await response.json();
     };
 
-    return tryFetch();
+    const searchData = await tryFetch();
+    return searchData.data?.search_by_raw_query?.search_timeline;
 }
 
 // TODO: userNameTextは使っていないので、消す

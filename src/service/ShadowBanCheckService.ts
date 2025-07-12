@@ -109,21 +109,22 @@ export class ShadowBanCheckService {
             return result
         }
 
-        const userScreenName = user.result.legacy.screen_name; // 大文字・小文字などの表記を合わせるため取得した値を使用
+        const userScreenName = user.result.core.screen_name; // 大文字・小文字などの表記を合わせるため取得した値を使用
 
         monitor.startOperation('fetchSearchTimeline');
-        const searchData = await fetchSearchTimelineAsync(screenName);
+        const searchTimeline = await fetchSearchTimelineAsync(userScreenName);
         monitor.endOperation('fetchSearchTimeline');
 
-        const searchTimeline = searchData.data?.search_by_raw_query?.search_timeline;
-
+        Log.debug(`userScreenName: ${userScreenName}`);
         let searchBanFlag = true
         if (searchTimeline?.timeline?.instructions) {
             for (const instruction of searchTimeline.timeline.instructions) {
                 if (!instruction.entries) continue
                 for (const entry of instruction.entries) {
                     if (entry.entryId.startsWith('tweet-')) {
-                        if (entry.content?.itemContent?.tweet_results?.result?.core?.user_results?.result?.legacy?.screen_name === userScreenName) {
+                        const screenNameInEntry = entry.content?.itemContent?.tweet_results?.result?.core?.user_results?.result?.legacy?.screen_name;
+                        Log.debug(`Checking entry screen name: ${screenNameInEntry} against ${userScreenName}`);
+                        if (screenNameInEntry === userScreenName) {
                             searchBanFlag = false
                             break
                         }
@@ -137,10 +138,13 @@ export class ShadowBanCheckService {
         const searchSuggestionBanFlag = searchBanFlag || await (async () => {
             const userNameText = user.result.legacy.name;
             monitor.startOperation('fetchSearchSuggestion');
-            const searchSuggestionUsers = await fetchSearchSuggestionAsync(screenName, userNameText);
+            const searchSuggestionUsers = await fetchSearchSuggestionAsync(userScreenName, userNameText);
             monitor.endOperation('fetchSearchSuggestion');
             return !searchSuggestionUsers.some(
-                (suggestionUser: { screen_name: string }) => suggestionUser.screen_name === userScreenName
+                (suggestionUser: { screen_name: string }) => {
+                    Log.debug(`Checking search suggestion user: ${suggestionUser.screen_name} against ${userScreenName} result: ${suggestionUser.screen_name === userScreenName}`);
+                    return suggestionUser.screen_name === userScreenName
+                }
             );
         })();
         result.search_suggestion_ban = searchSuggestionBanFlag;
