@@ -34,6 +34,7 @@ import { verifyReferer } from './middleware/VerifyReferer'
 import { ApiAccessLogController } from './controller/ApiAccessLogController'
 import { requestParser } from './middleware/RequestParser'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
+import { AuthTokenController } from './controller/AuthTokenController'
 
 type Bindings = {}
 
@@ -278,6 +279,7 @@ app.get('/api/searchtimeline', async (c: Context) => {
   }
 })
 
+// TODO:ここらへんAuthTokenControllerに移動
 // 認証トークン保存エンドポイントを更新
 app.get('/api/save-auth-token', async (c) => {
   try {
@@ -324,6 +326,8 @@ app.get('/api/save-auth-token', async (c) => {
     }, 500);
   }
 });
+
+app.get('/api/delete-auth-token', AuthTokenController.deleteTokenByAccountId);
 
 // 全トークン情報の取得エンドポイント
 app.get('/api/get-auth-tokens', async (c) => {

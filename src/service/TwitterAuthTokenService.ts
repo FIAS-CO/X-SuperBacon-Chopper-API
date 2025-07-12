@@ -122,6 +122,23 @@ export class TwitterAuthTokenService {
         this.notifyRateLimit(token, DateUtil.formatJST(resetTime))
     }
 
+    async deleteTokenByAccountId(accountId: string): Promise<any> {
+        try {
+            const deletedToken = await prisma.authToken.delete({
+                where: {
+                    accountId: accountId
+                }
+            });
+
+            this.notifyTokenDeleted(deletedToken.token, deletedToken.accountId);
+
+            return deletedToken;
+        } catch (error) {
+            Log.error(`トークン削除中にエラーが発生しました: `, error);
+            return null;
+        }
+    }
+
     /**
      * 無効になったトークンを削除する
      * @param token 削除するトークン
@@ -135,18 +152,25 @@ export class TwitterAuthTokenService {
                 }
             });
 
-            Log.info(`認証トークンが削除されました: ${token.substring(0, 5)}...${token.substring(token.length - 5)}`);
-            discordNotifyService.sendMessage(`
-🗑️ **認証トークンが削除されました**
-**Token:** ${token.substring(0, 5)}...${token.substring(token.length - 5)}
-**Account:** ${deletedToken.accountId}
-            `, DiscordChannel.TOKEN_RELATED);
+            this.notifyTokenDeleted(deletedToken.token, deletedToken.accountId);
 
             return deletedToken;
         } catch (error) {
             Log.error(`トークン削除中にエラーが発生しました: `, error);
             return null;
         }
+    }
+
+    /**
+     * トークン削除の通知メソッド
+     */
+    async notifyTokenDeleted(token: string, accountId: string): Promise<void> {
+        Log.info(`認証トークンが削除されました: ${token.substring(0, 5)}...${token.substring(token.length - 5)}`);
+        discordNotifyService.sendMessage(`
+🗑️ **認証トークンが削除されました**
+**Token:** ${token.substring(0, 5)}...${token.substring(token.length - 5)}
+**Account:** ${accountId}
+            `, DiscordChannel.TOKEN_RELATED);
     }
 
     /**
