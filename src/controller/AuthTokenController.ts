@@ -9,7 +9,7 @@ export class AuthTokenController {
      */
     static async deleteTokenByAccountId(c: Context) {
         try {
-            const accountId = c.req.query('accountId');
+            const accountId = c.req.query('screen_name');
 
             if (!accountId) {
                 return respondWithDetailedError(c, new Error('accountId query parameter is required'), 4001, 400);
