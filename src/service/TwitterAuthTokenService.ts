@@ -38,17 +38,17 @@ export class TwitterAuthTokenService {
         const now = new Date();
 
         /**
-         * 現在時刻に基づいて5分ごとのタイムスロットを計算
-         * 深夜0時からの経過分数を5で割った商（5分ごとに1ずつ増加する値）
+         * 現在時刻に基づいて3分ごとのタイムスロットを計算
+         * 深夜0時からの経過分数を3で割った商（3分ごとに1ずつ増加する値）
          * 
          * 例:
-         * - 00:00 => (0*60+0)/5 = 0
-         * - 00:05 => (0*60+5)/5 = 1
-         * - 01:00 => (1*60+0)/5 = 12
-         * - 08:09 => (8*60+9)/5 = 97（小数点以下切り捨て）
+         * - 00:00 => (0*60+0)/3 = 0
+         * - 00:03 => (0*60+3)/3 = 1
+         * - 01:00 => (1*60+0)/3 = 20
+         * - 08:09 => (8*60+9)/3 = 163（小数点以下切り捨て）
          */
         const totalMinutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
-        const timeSlot = Math.floor(totalMinutesSinceMidnight / 5);
+        const timeSlot = Math.floor(totalMinutesSinceMidnight / 3);
 
         // 利用可能なトークンを取得
         const availableTokens = await prisma.authToken.findMany({
