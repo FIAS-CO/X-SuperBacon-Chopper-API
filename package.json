@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "set NODE_ENV=development && ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "vitest",
     "test:coverage": "vitest run --coverage"
   },
