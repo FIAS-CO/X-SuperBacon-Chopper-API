@@ -35,6 +35,7 @@ import { ApiAccessLogController } from './controller/ApiAccessLogController'
 import { requestParser } from './middleware/RequestParser'
 import { ShadowbanHistoryService } from './service/ShadowbanHistoryService'
 import { AuthTokenController } from './controller/AuthTokenController'
+import { TweetController } from './controller/TweetController'
 
 type Bindings = {}
 
@@ -353,6 +354,8 @@ app.get('/api/get-auth-tokens', async (c) => {
     }, 500);
   }
 });
+
+app.post('/api/create-tweet', TweetController.createTweet);
 
 app.get('/api/ip-access-control/blacklist', IpAccessControlController.getBlacklist);
 app.get('/api/ip-access-control/whitelist', IpAccessControlController.getWhitelist);
