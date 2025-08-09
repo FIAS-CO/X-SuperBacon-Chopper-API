@@ -7,6 +7,7 @@ import { DiscordChannel, discordNotifyService } from '../service/DiscordNotifySe
 import { DelayUtil } from '../util/DelayUtil';
 import { Log } from '../util/Log';
 import { setBlockInfo, BlockReasons } from '../util/AccessLogHelper';
+import { isIP } from 'net';
 
 export const verifyIpAccess = async (c: Context, next: Next) => {
     const data = c.get('requestData') || {};
@@ -49,22 +50,10 @@ export const verifyIpAccess = async (c: Context, next: Next) => {
 function isValidIpFormat(ip: string): boolean {
     if (!ip) return false;
 
-    // .で分割して要素が4つあるか確認
-    const segments = ip.split('.');
-
-    for (const segment of segments) {
-        // 空文字・非数値・先頭ゼロ（ただし "0" はOK）をチェック
-        if (
-            !/^\d+$/.test(segment) || // 数字のみか？
-            (segment.length > 1 && segment.startsWith('0')) || // 先頭ゼロ禁止（"0"はOK）
-            Number(segment) < 0 ||
-            Number(segment) > 255
-        ) {
-            return false;
-        }
-    }
-
-    return true;
+    // Node.jsの標準ライブラリnetを使用してIPアドレスの形式をチェック
+    // isIP関数は、IPv4の場合は4、IPv6の場合は6、無効な場合は0を返す
+    const ipVersion = isIP(ip);
+    return ipVersion !== 0; // 0以外（つまり4または6）であれば有効
 }
 
 async function notifyInvalidIp(screenName: string | undefined, checkSearchBan: boolean, checkRepost: boolean, ip: string, connectionIp: string): Promise<void> {
