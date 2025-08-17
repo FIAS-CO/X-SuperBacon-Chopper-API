@@ -2,7 +2,7 @@ import { Log } from '../util/Log'
 import { systemSettingService } from './SystemSettingService'
 import { SystemSettingsUtil } from '../util/SystemSettingsUtil'
 
-const THRESHOLD = 500
+const THRESHOLD = 1500
 const INTERVAL_MS = 30 * 60 * 1000 // 30分
 
 class AegisMonitorService {
