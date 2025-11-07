@@ -771,14 +771,15 @@ export function extractCursor(data: any): string {
 /**
  * タイムラインからツイート情報を抽出
  */
-export async function getTimelineUrls(userId: string, containRepost: boolean): Promise<string[]> {
-    const tweetInfos = await getTimelineTweetInfo(userId, containRepost);
+// export async function getTimelineUrls(userId: string, containRepost: boolean): Promise<string[]> {
+//     const tweetInfos = await getTimelineTweetInfo(userId, containRepost);
 
-    return tweetInfos
-        .map(tweet => tweet.url);
-}
+//     return tweetInfos
+//         .map(tweet => tweet.url);
+// }
 
-export async function getTimelineTweetInfo(userId: string, containRepost: boolean): Promise<TweetInfo[]> {
+export async function getTimelineTweetInfo(screenName: string, userId: string, containRepost: boolean): Promise<TweetInfo[]> {
+    return [];
     const DESIRED_COUNT = 20;
     const authTokenSet = await authTokenService.getRequiredTokenSet();
     if (!authTokenSet) {
@@ -791,7 +792,7 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
     var isFirstTime = true;
     while (allTweetInfos.length < DESIRED_COUNT) {
         // API呼び出し
-        const response = await fetchUserTweetsAsync(authTokenSet, userId, cursor);
+        const response = await fetchUserTweetsAsync(screenName, authTokenSet, userId, cursor);
         if (!response.ok) {
             return await handleTwitterApiError(response, authTokenSet.token, 'UserTweets');
         }
@@ -822,15 +823,14 @@ export async function getTimelineTweetInfo(userId: string, containRepost: boolea
     return allTweetInfos.slice(0, DESIRED_COUNT);
 }
 
-export async function fetchUserTweetsAsync(authTokenSet: AuthTokenSet, userId: string, cursor: string = ""): Promise<Response> {
-    const authToken = authTokenSet.token;
-    const csrfToken = authTokenSet.csrfToken;
+export async function fetchUserTweetsAsync(screenName: string, authTokenSet: AuthTokenSet, userId: string, cursor: string = ""): Promise<Response> {
+    const endpoint = "/i/api/graphql/oRJs8SLCRNRbQzuZG93_oA/UserTweets";
 
-    const headers = {
-        Authorization: "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-        Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
-        "X-Csrf-Token": csrfToken,
-    };
+    const transactionId = await getTransactionIdAsync("GET", endpoint);
+    const referer = `https://x.com/${screenName}`;
+    const headers = await createHeaderWithTransactionId(authTokenSet, referer, transactionId);
+
+    headers["x-xp-forwarded-for"] = "adb489fa11e0fab3f0235971cfb3104d43a8626e8beb2f30b8f278e5b01c2d7894d413c5079f80ac8e019f4866192a1edc9968c3fa03292b864a51be9dee87a6773d0f63d658d505f45407cf139c09f8d9372c3a528563a74a02692d6ef07d5a9f6f9304c3b77bff416dca783f57f66c6f7bcb903f00491b09baa65503cfff260b91a295556cd34d0db0491c15c832f1011fd973a16fb630fd47977aa5f6a3067925ed0f022a466b5a25bac6d28f692d313792a088aa8714ff5149fc9e06b13d7782a431c28e996d7d1853aa4816a5d99fa4129dbdb6c7bf49c7d343";
 
     // Now get user's timeline
     const timelineParams = new URLSearchParams({
@@ -841,14 +841,11 @@ export async function fetchUserTweetsAsync(authTokenSet: AuthTokenSet, userId: s
             includePromotedContent: true,
             withQuickPromoteEligibilityTweetFields: true,
             withVoice: true,
-            withV2Timeline: true
         }),
         features: JSON.stringify({
             rweb_tipjar_consumption_enabled: true,
-            responsive_web_graphql_exclude_directive_enabled: true,
             verified_phone_label_enabled: false,
             creator_subscriptions_tweet_preview_api_enabled: true,
-            responsive_web_graphql_timeline_navigation_enabled: true,
             responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
             communities_web_enable_tweet_community_results_fetch: true,
             c9s_tweet_anatomy_moderator_badge_enabled: true,
@@ -866,7 +863,20 @@ export async function fetchUserTweetsAsync(authTokenSet: AuthTokenSet, userId: s
             rweb_video_timestamps_enabled: true,
             longform_notetweets_rich_text_read_enabled: true,
             longform_notetweets_inline_media_enabled: true,
-            responsive_web_enhance_cards_enabled: false
+            rweb_video_screen_enabled: false,
+            payments_enabled: false,
+            profile_label_improvements_pcf_label_in_post_enabled: true,
+            responsive_web_profile_redirect_enabled: false,
+            premium_content_api_read_enabled: false,
+            responsive_web_grok_analyze_button_fetch_trends_enabled: false,
+            responsive_web_grok_analyze_post_followups_enabled: true,
+            responsive_web_jetfuel_frame: true,
+            responsive_web_grok_share_attachment_enabled: true,
+            responsive_web_grok_show_grok_translated_post: false,
+            responsive_web_grok_analysis_button_from_backend: true,
+            responsive_web_grok_image_annotation_enabled: true,
+            responsive_web_grok_imagine_annotation_enabled: true,
+            responsive_web_grok_community_note_auto_translation_is_enabled: false,
         }),
         fieldToggles: JSON.stringify({
             withArticlePlainText: false
@@ -874,21 +884,14 @@ export async function fetchUserTweetsAsync(authTokenSet: AuthTokenSet, userId: s
     });
 
     const timelineResponse = await fetch(
-        `https://x.com/i/api/graphql/Tg82Ez_kxVaJf7OPbUdbCg/UserTweets?${timelineParams}`,
+        `https://x.com${endpoint}?${timelineParams}`,
         { headers }
     );
+
+    const authToken = authTokenSet.token;
     authTokenService.updateRateLimit(authToken, timelineResponse.headers);
 
     return timelineResponse;
-}
-
-async function createHeader(authTokenSet: AuthTokenSet) {
-    return {
-        Authorization:
-            "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-        Cookie: `auth_token=${authTokenSet.token}; ct0=${authTokenSet.csrfToken}`,
-        "X-Csrf-Token": authTokenSet.csrfToken,
-    };
 }
 
 async function createHeaderWithTransactionId(authTokenSet: AuthTokenSet, referer: string, transactionId: string): Promise<any> {

@@ -102,7 +102,7 @@ export class ShadowBanCheckService {
             return result
         }
 
-        if (user.result.legacy.protected === true) {
+        if (user.result.legacy.protected === true) { // privacy.protected になるかも
             result.protect = true;
             await service.createHistory(screenName, result, sessionId, ip);
 
@@ -158,7 +158,7 @@ export class ShadowBanCheckService {
                 monitor.endOperation('fetchUserId');
 
                 monitor.startOperation('fetchTimelineUrls');
-                const tweetInfos = await getTimelineTweetInfo(userId, checkRepost);
+                const tweetInfos = await getTimelineTweetInfo(userScreenName, userId, checkRepost);
                 monitor.endOperation('fetchTimelineUrls');
 
                 monitor.startOperation('batchCheckTweets');

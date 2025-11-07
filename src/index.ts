@@ -534,7 +534,7 @@ app.get('/api/usertweets', async (c) => {
       return c.json({ error: 'user_id parameter is required' }, 400);
     }
 
-    const response = await fetchUserTweetsAsync(authTokenSet, userId);
+    const response = await fetchUserTweetsAsync(screenName, authTokenSet, userId);
 
     if (!response.ok) {
       throw new Error(`Twitter API returned status: ${response.status}`);
@@ -654,7 +654,7 @@ app.get('/api/user-timeline-urls', async (c) => {
     }
 
     // Extract URLs from timeline data
-    const urls = await getTimelineTweetInfo(userId, checkRepost);
+    const urls = await getTimelineTweetInfo(screenName, userId, checkRepost);
 
     return c.json({ urls });
 
