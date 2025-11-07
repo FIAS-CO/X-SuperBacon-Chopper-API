@@ -482,7 +482,16 @@ export async function fetchSearchTimelineAsync(screenName: string): Promise<any>
 export async function fetchSearchSuggestionAsync(screenName: string, userNameText: string): Promise<any> {
 
     const authTokenSet = await authTokenService.getRequiredTokenSet();
-    const headers = await createHeader(authTokenSet);
+    const transactionId = await getTransactionIdAsync("GET", "/i/api/1.1/search/typeahead.json");
+    const headers = await createHeaderWithTransactionId(
+        authTokenSet,
+        "https://x.com/home",  // refererはhome
+        transactionId
+    );
+
+    delete headers["content-type"];  // GETリクエストなので削除
+    delete headers["TE"];  // 削除
+    headers["Connection"] = "keep-alive";  // 追加
 
     const suggestionParams = new URLSearchParams({
         "include_ext_is_blue_verified": "1",
