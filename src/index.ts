@@ -537,7 +537,7 @@ app.get('/api/usertweets', async (c) => {
     const response = await fetchUserTweetsAsync(screenName, authTokenSet, userId);
 
     if (!response.ok) {
-      throw new Error(`Twitter API returned status: ${response.status}`);
+      throw new Error(`Twitter API - UT returned status: ${response.status}, body: ${await response.text()}`);
     }
 
     const data = await response.json();

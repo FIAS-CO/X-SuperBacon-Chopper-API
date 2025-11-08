@@ -826,11 +826,20 @@ export async function getTimelineTweetInfo(screenName: string, userId: string, c
 export async function fetchUserTweetsAsync(screenName: string, authTokenSet: AuthTokenSet, userId: string, cursor: string = ""): Promise<Response> {
     const endpoint = "/i/api/graphql/oRJs8SLCRNRbQzuZG93_oA/UserTweets";
 
-    const transactionId = await getTransactionIdAsync("GET", endpoint);
-    const referer = `https://x.com/${screenName}`;
-    const headers = await createHeaderWithTransactionId(authTokenSet, referer, transactionId);
+    const authToken = authTokenSet.token;
+    const csrfToken = authTokenSet.csrfToken;
+    const transactionId = await getTransactionIdAsync("GET", "/i/api/graphql/oRJs8SLCRNRbQzuZG93_oA/UserTweets");
 
-    headers["x-xp-forwarded-for"] = "adb489fa11e0fab3f0235971cfb3104d43a8626e8beb2f30b8f278e5b01c2d7894d413c5079f80ac8e019f4866192a1edc9968c3fa03292b864a51be9dee87a6773d0f63d658d505f45407cf139c09f8d9372c3a528563a74a02692d6ef07d5a9f6f9304c3b77bff416dca783f57f66c6f7bcb903f00491b09baa65503cfff260b91a295556cd34d0db0491c15c832f1011fd973a16fb630fd47977aa5f6a3067925ed0f022a466b5a25bac6d28f692d313792a088aa8714ff5149fc9e06b13d7782a431c28e996d7d1853aa4816a5d99fa4129dbdb6c7bf49c7d343";
+    const headers = {
+        Authorization: "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+        Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
+        "x-csrf-token": csrfToken,
+        referer: `https://x.com/${screenName}`,
+        "x-twitter-auth-type": "OAuth2Session",
+        "x-client-transaction-id": transactionId,
+        "x-twitter-client-language": "ja",
+        "x-twitter-active-user": "yes",
+    };
 
     // Now get user's timeline
     const timelineParams = new URLSearchParams({
@@ -888,7 +897,6 @@ export async function fetchUserTweetsAsync(screenName: string, authTokenSet: Aut
         { headers }
     );
 
-    const authToken = authTokenSet.token;
     authTokenService.updateRateLimit(authToken, timelineResponse.headers);
 
     return timelineResponse;
