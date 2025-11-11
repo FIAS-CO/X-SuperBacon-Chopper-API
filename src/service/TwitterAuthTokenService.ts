@@ -73,14 +73,18 @@ export class TwitterAuthTokenService {
         };
     }
 
+    updateRateLimitByUnixTime(token: string, remaining: number, resetTimeUnix: number) {
+        if (remaining != 0) return;
+
+        this.updateTokenResetTime(token, resetTimeUnix);
+    }
+
     // レスポンスヘッダーからレート制限情報を更新   
     updateRateLimit(token: string, headers: Headers) {
         const remaining = parseInt(headers.get('x-rate-limit-remaining') || '0');
         const resetTime = parseInt(headers.get('x-rate-limit-reset') || '0');
 
-        if (remaining != 0) return;
-
-        this.updateTokenResetTime(token, resetTime);
+        this.updateRateLimitByUnixTime(token, remaining, resetTime);
     }
 
     /**

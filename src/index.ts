@@ -516,41 +516,41 @@ app.get('/api/user-id', async (c) => {
   }
 });
 
-app.get('/api/usertweets', async (c) => {
-  try {
-    const authTokenSet = await authTokenService.getRequiredTokenSet();
-    if (!authTokenSet) {
-      throw new Error("AUTH_TOKEN is not defined");
-    }
+// app.get('/api/usertweets', async (c) => {
+//   try {
+//     const authTokenSet = await authTokenService.getRequiredTokenSet();
+//     if (!authTokenSet) {
+//       throw new Error("AUTH_TOKEN is not defined");
+//     }
 
-    const screenName = c.req.query('screen_name');
+//     const screenName = c.req.query('screen_name');
 
-    if (!screenName) {
-      throw new Error("SCREEN_NAME is not defined");
-    }
+//     if (!screenName) {
+//       throw new Error("SCREEN_NAME is not defined");
+//     }
 
-    const userId = (await fetchUserByScreenNameAsync(screenName)).result?.rest_id;
-    if (!userId) {
-      return c.json({ error: 'user_id parameter is required' }, 400);
-    }
+//     const userId = (await fetchUserByScreenNameAsync(screenName)).result?.rest_id;
+//     if (!userId) {
+//       return c.json({ error: 'user_id parameter is required' }, 400);
+//     }
 
-    const response = await fetchUserTweetsAsync(screenName, authTokenSet, userId);
+//     const response = await fetchUserTweetsAsync(authTokenSet, userId);
 
-    if (!response.ok) {
-      throw new Error(`Twitter API - UT returned status: ${response.status}, body: ${await response.text()}`);
-    }
+//     if (!response.ok) {
+//       throw new Error(`Twitter API - UT returned status: ${response.status}, body: ${await response.text()}`);
+//     }
 
-    const data = await response.json();
-    return c.json(data);
+//     const data = await response.json();
+//     return c.json(data);
 
-  } catch (error) {
-    Log.error('/api/usertweets Error:', error);
-    return c.json({
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
-  }
-});
+//   } catch (error) {
+//     Log.error('/api/usertweets Error:', error);
+//     return c.json({
+//       error: 'Internal server error',
+//       details: error instanceof Error ? error.message : 'Unknown error'
+//     }, 500);
+//   }
+// });
 
 app.get('/api/userreplies', async (c) => {
   try {
@@ -654,7 +654,7 @@ app.get('/api/user-timeline-urls', async (c) => {
     }
 
     // Extract URLs from timeline data
-    const urls = await getTimelineTweetInfo(screenName, userId, checkRepost);
+    const urls = await getTimelineTweetInfo(userId, checkRepost);
 
     return c.json({ urls });
 

@@ -5,6 +5,8 @@ import { CheckHistoryService } from "../service/CheckHistoryService";
 import { authTokenService } from "../service/TwitterAuthTokenService";
 import { Log } from "../util/Log";
 import { discordNotifyService } from "../service/DiscordNotifyService";
+import { TimelineApiUtilsResponse, TweetApiUtilsData, TwitterOpenApi } from "twitter-openapi-typescript";
+import { TimelinePinEntry, TimelineTimelineItem } from "twitter-openapi-typescript-generated";
 
 interface CheckResult {
     url: string;
@@ -581,13 +583,13 @@ interface TweetResult {
     rest_id: string;
     tweet?: TweetResult;
     core?: {
-        user_results: {
+        userResults: {
             result: {
                 legacy: UserResultLegacy;
             };
         };
     };
-    quoted_status_result: any;
+    quotedStatusResult: any;
     legacy: TweetResultLegacy;
 }
 
@@ -603,111 +605,8 @@ interface AddInstruction extends Instraction {
     entries?: Tweet[];
 }
 
-interface PinInstruction extends Instraction {
-    entry: Tweet;
-}
-
 interface Instraction {
     type: string;
-}
-
-/**
- * タイムラインデータからツイート情報を抽出する補助関数
- */
-function extractTweetInfos(data: any): TweetInfo[] {
-    const tweetInfos: TweetInfo[] = [];
-
-    try {
-        const instructions: Instraction[] = data?.data?.user?.result?.timeline_v2?.timeline?.instructions || [];
-
-        const timelineAddInstruction = instructions.find(
-            instruction => instruction.type === "TimelineAddEntries"
-        ) as AddInstruction;
-
-        if (timelineAddInstruction?.entries) {
-            timelineAddInstruction.entries.forEach(tweet => {
-                pushTweet(tweetInfos, tweet);
-            });
-        }
-
-        return tweetInfos;
-    } catch (error) {
-        Log.error('Error extracting tweet infos:', error);
-        return [];
-    }
-
-}
-
-function extractPinnedTweetInfos(data: any): TweetInfo[] {
-    const tweetInfos: TweetInfo[] = [];
-
-    try {
-        const instructions: Instraction[] = data?.data?.user?.result?.timeline_v2?.timeline?.instructions || [];
-
-        const timelinePinInstruction = instructions.find(
-            instruction => instruction.type === "TimelinePinEntry"
-        ) as PinInstruction;
-
-        if (timelinePinInstruction?.entry) {
-            pushPinnedTweet(tweetInfos, timelinePinInstruction.entry);
-        }
-
-        return tweetInfos;
-    } catch (error) {
-        Log.error('Error extracting tweet infos:', error);
-        return [];
-    }
-
-}
-
-function pushPinnedTweet(tweetInfos: TweetInfo[], tweet: Tweet) {
-    pushTweet(tweetInfos, tweet, true);
-}
-
-function pushTweet(tweetInfos: TweetInfo[], tweet: Tweet, pinned = false) {
-    if (tweet.content?.entryType === "TimelineTimelineItem") {
-        const tweetResult = tweet?.content?.itemContent?.tweet_results?.result;
-        if (tweetResult) {
-            pushTweetInfo(tweetInfos, tweetResult, pinned);
-        }
-    } else if (tweet.content?.entryType === "TimelineTimelineModule") {
-        const items: Item[] = tweet?.content?.items;
-
-        items.forEach(item => {
-            const tweetResult = item.item.itemContent.tweet_results?.result;
-            if (tweetResult && tweetResult.__typename === "Tweet") {
-                pushTweetInfo(tweetInfos, tweetResult, pinned);
-            }
-        });
-    }
-}
-
-function pushTweetInfo(tweetInfos: TweetInfo[], tweetResult: TweetResult, pinned = false) {
-    try {
-        const core = tweetResult.core || tweetResult.tweet?.core;
-        const userResultLegacy = core?.user_results.result.legacy;
-        const screenName = userResultLegacy?.screen_name;
-
-        const tweetId = tweetResult.rest_id || tweetResult.tweet?.rest_id;
-
-        const url = `https://x.com/${screenName}/status/${tweetId}`;
-
-        tweetInfos.push({
-            url: url,
-            isRetweet: isRetweet(tweetResult),
-            isQuated: isQuated(tweetResult),
-            hasMedia: false,
-            isPinned: pinned,
-        });
-    } catch (error) {
-        tweetInfos.push({
-            url: `https://x.com/unknown/status/unknown`,
-            isRetweet: false,
-            isQuated: false,
-            hasMedia: false,
-            isPinned: pinned,
-        });
-    }
 }
 
 /**
@@ -724,28 +623,6 @@ function pushTweetInfo(tweetInfos: TweetInfo[], tweetResult: TweetResult, pinned
 //     // メディアが存在し、かつphoto/video/animated_gifのいずれかを含む
 //     return [...media, ...mediaInRt].some(m => ['photo', 'video', 'animated_gif'].includes(m.type));
 // }
-
-function isQuated(tweetResult: TweetResult | undefined): boolean {
-    try {
-        if (!tweetResult) return false;
-        return Boolean(tweetResult?.quoted_status_result?.result);
-    } catch (error) {
-        Log.error('Error checking quoted status:', error);
-        return false;
-    }
-}
-
-/**
- * ツイートがリツイートかどうかを判定
- */
-function isRetweet(tweetResult?: TweetResult): boolean {
-    try {
-        return Boolean(tweetResult?.legacy?.retweeted_status_result?.result);
-    } catch (error) {
-        Log.error('Error checking Repost status:', error);
-        return false;
-    }
-}
 
 export function extractCursor(data: any): string {
     try {
@@ -768,138 +645,102 @@ export function extractCursor(data: any): string {
     }
 }
 
-/**
- * タイムラインからツイート情報を抽出
- */
-// export async function getTimelineUrls(userId: string, containRepost: boolean): Promise<string[]> {
-//     const tweetInfos = await getTimelineTweetInfo(userId, containRepost);
+function getPinnedTweet(response: TimelineApiUtilsResponse<TweetApiUtilsData>): TweetInfo | undefined {
+    const timelinePinEntry = response.raw.instruction.find(
+        instr => instr.type === 'TimelinePinEntry'
+    ) as TimelinePinEntry | undefined;
 
-//     return tweetInfos
-//         .map(tweet => tweet.url);
-// }
+    if (!timelinePinEntry) return undefined;
 
-export async function getTimelineTweetInfo(screenName: string, userId: string, containRepost: boolean): Promise<TweetInfo[]> {
-    return [];
-    const DESIRED_COUNT = 20;
+    const content = timelinePinEntry.entry.content;
+    if (content.entryType !== 'TimelineTimelineItem') return undefined;
+
+    const itemContent = (content as TimelineTimelineItem).itemContent;
+    if (itemContent.typename !== 'TimelineTweet') return undefined;
+
+    const tweetResult = itemContent.tweetResults.result;
+    if (tweetResult?.typename !== 'Tweet') return undefined;
+
+    const userResult = tweetResult.core?.userResults.result;
+    if (userResult?.typename !== 'User') return undefined;
+
+    const screenName = userResult.legacy.screenName;
+
+    const tweetId = tweetResult.restId;
+    if (!tweetId) return undefined;
+
+    return {
+        url: `https://x.com/${screenName}/status/${tweetId}`,
+        isRetweet: false, // ピン留めツイートはリツイートではない
+        isQuated: tweetResult?.quotedStatusResult?.result != null,
+        hasMedia: false, // 現状未使用
+        isPinned: true,
+    };
+}
+
+function getNormalTweets(timelineResponse: TimelineApiUtilsResponse<TweetApiUtilsData>, containRepost: boolean): TweetInfo[] {
+    const tweetInfos: TweetInfo[] = [];
+    // 広告を省いたリスト作成
+    const tweets = timelineResponse.data.filter(item => item.promotedMetadata !== null);
+    console.log(`Fetched ${tweets.length} tweets from timeline.`);
+
+    tweets.forEach(tweetData => {
+        const tweet = tweetData.tweet;
+        const id = tweet.restId;
+        const screenName = tweetData.user.legacy.screenName;
+        const url = `https://x.com/${screenName}/status/${id}`;
+        const isRetweet = tweetData.retweeted != null;
+        const isQuated = tweetData.quoted != null;
+
+        tweetInfos.push({
+            url: url,
+            isRetweet: isRetweet,
+            isQuated: isQuated,
+            hasMedia: false,
+            isPinned: false,
+        });
+    });
+
+    return tweetInfos
+}
+
+export async function getTimelineTweetInfo(userId: string, containRepost: boolean): Promise<TweetInfo[]> {
     const authTokenSet = await authTokenService.getRequiredTokenSet();
     if (!authTokenSet) {
         throw new Error("AUTH_TOKEN is not defined");
     }
 
-    let allTweetInfos: TweetInfo[] = [];
     let cursor: string = "";
+    let allTweetInfos: TweetInfo[] = [];
+    const timelineResponse = await fetchUserTweetsAsync(authTokenSet, userId, cursor);
 
-    var isFirstTime = true;
-    while (allTweetInfos.length < DESIRED_COUNT) {
-        // API呼び出し
-        const response = await fetchUserTweetsAsync(screenName, authTokenSet, userId, cursor);
-        if (!response.ok) {
-            return await handleTwitterApiError(response, authTokenSet.token, 'UserTweets');
-        }
-
-        const data = await response.json();
-
-        if (isFirstTime) {
-            allTweetInfos = [...allTweetInfos, ...extractPinnedTweetInfos(data)]
-        }
-        isFirstTime = false;
-
-        const newTweetInfos = extractTweetInfos(data)
-            .filter(tweet => containRepost || (!tweet.isRetweet && !tweet.isQuated));
-
-        // 新しいツイートがない場合は終了
-        if (newTweetInfos.length === 0) break;
-
-        allTweetInfos = [...allTweetInfos, ...newTweetInfos];
-
-        // 次のページのカーソルを取得
-        cursor = extractCursor(data);
-
-        // カーソルがない場合は終了（最後のページに到達）
-        if (!cursor) break;
+    const pinnedTweet = getPinnedTweet(timelineResponse);
+    if (pinnedTweet) {
+        allTweetInfos.push(pinnedTweet);
     }
+    const normalTweetInfos = getNormalTweets(timelineResponse, containRepost);
+    allTweetInfos = [...allTweetInfos, ...normalTweetInfos];
 
-    // 最大50件まで返す
-    return allTweetInfos.slice(0, DESIRED_COUNT);
+    return allTweetInfos
 }
 
-export async function fetchUserTweetsAsync(screenName: string, authTokenSet: AuthTokenSet, userId: string, cursor: string = ""): Promise<Response> {
-    const endpoint = "/i/api/graphql/oRJs8SLCRNRbQzuZG93_oA/UserTweets";
-
+export async function fetchUserTweetsAsync(authTokenSet: AuthTokenSet, userId: string, cursor: string = ""): Promise<TimelineApiUtilsResponse<TweetApiUtilsData>> {
     const authToken = authTokenSet.token;
     const csrfToken = authTokenSet.csrfToken;
-    const transactionId = await getTransactionIdAsync("GET", "/i/api/graphql/oRJs8SLCRNRbQzuZG93_oA/UserTweets");
 
-    const headers = {
-        Authorization: "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
-        Cookie: `auth_token=${authToken}; ct0=${csrfToken}`,
-        "x-csrf-token": csrfToken,
-        referer: `https://x.com/${screenName}`,
-        "x-twitter-auth-type": "OAuth2Session",
-        "x-client-transaction-id": transactionId,
-        "x-twitter-client-language": "ja",
-        "x-twitter-active-user": "yes",
-    };
+    const api = new TwitterOpenApi();
 
-    // Now get user's timeline
-    const timelineParams = new URLSearchParams({
-        variables: JSON.stringify({
-            userId: userId,
-            count: 20,
-            cursor: cursor, //'DAABCgABGcvdSpV___AKAAIZyYBlGJqx0QgAAwAAAAIAAA',
-            includePromotedContent: true,
-            withQuickPromoteEligibilityTweetFields: true,
-            withVoice: true,
-        }),
-        features: JSON.stringify({
-            rweb_tipjar_consumption_enabled: true,
-            verified_phone_label_enabled: false,
-            creator_subscriptions_tweet_preview_api_enabled: true,
-            responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
-            communities_web_enable_tweet_community_results_fetch: true,
-            c9s_tweet_anatomy_moderator_badge_enabled: true,
-            articles_preview_enabled: true,
-            responsive_web_edit_tweet_api_enabled: true,
-            graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
-            view_counts_everywhere_api_enabled: true,
-            longform_notetweets_consumption_enabled: true,
-            responsive_web_twitter_article_tweet_consumption_enabled: true,
-            tweet_awards_web_tipping_enabled: false,
-            creator_subscriptions_quote_tweet_preview_enabled: false,
-            freedom_of_speech_not_reach_fetch_enabled: true,
-            standardized_nudges_misinfo: true,
-            tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
-            rweb_video_timestamps_enabled: true,
-            longform_notetweets_rich_text_read_enabled: true,
-            longform_notetweets_inline_media_enabled: true,
-            rweb_video_screen_enabled: false,
-            payments_enabled: false,
-            profile_label_improvements_pcf_label_in_post_enabled: true,
-            responsive_web_profile_redirect_enabled: false,
-            premium_content_api_read_enabled: false,
-            responsive_web_grok_analyze_button_fetch_trends_enabled: false,
-            responsive_web_grok_analyze_post_followups_enabled: true,
-            responsive_web_jetfuel_frame: true,
-            responsive_web_grok_share_attachment_enabled: true,
-            responsive_web_grok_show_grok_translated_post: false,
-            responsive_web_grok_analysis_button_from_backend: true,
-            responsive_web_grok_image_annotation_enabled: true,
-            responsive_web_grok_imagine_annotation_enabled: true,
-            responsive_web_grok_community_note_auto_translation_is_enabled: false,
-        }),
-        fieldToggles: JSON.stringify({
-            withArticlePlainText: false
-        })
+    const client = await api.getClientFromCookies({
+        ct0: csrfToken,
+        auth_token: authToken,
     });
 
-    const timelineResponse = await fetch(
-        `https://x.com${endpoint}?${timelineParams}`,
-        { headers }
-    );
+    const timelineResponse = await client.getTweetApi().getUserTweets({ userId: userId });
+    const header = timelineResponse.header
+    authTokenService.updateRateLimitByUnixTime(authToken, header.rateLimitRemaining, header.rateLimitReset);
 
-    authTokenService.updateRateLimit(authToken, timelineResponse.headers);
-
-    return timelineResponse;
+    // Responseにはdata以外にはheaderしかない。headerからはRateLimitだけ取得できればいいので、dataを返す。
+    return timelineResponse.data;
 }
 
 async function createHeaderWithTransactionId(authTokenSet: AuthTokenSet, referer: string, transactionId: string): Promise<any> {

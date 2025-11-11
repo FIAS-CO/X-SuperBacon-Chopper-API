@@ -158,7 +158,7 @@ export class ShadowBanCheckService {
                 monitor.endOperation('fetchUserId');
 
                 monitor.startOperation('fetchTimelineUrls');
-                const tweetInfos = await getTimelineTweetInfo(userScreenName, userId, checkRepost);
+                const tweetInfos = await getTimelineTweetInfo(userId, checkRepost);
                 monitor.endOperation('fetchTimelineUrls');
 
                 monitor.startOperation('batchCheckTweets');
