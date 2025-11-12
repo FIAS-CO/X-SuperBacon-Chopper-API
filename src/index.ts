@@ -850,6 +850,34 @@ app.get('/api/check-heap-size', async (c: Context) => {
   });
 });
 
+app.get('/api/fetchUserTweets', async (c: Context) => {
+  try {
+    const authTokenSet = await authTokenService.getRequiredTokenSet();
+    const screenName = c.req.query('screen_name');
+    if (!screenName) {
+      return c.json({ error: 'screen_name parameter is required' }, 400);
+    }
+
+    // 認証トークンの確認
+    const userId = (await fetchUserByScreenNameAsync(screenName)).result?.rest_id;
+
+    if (!userId) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+
+    const timelineResponse = await fetchUserTweetsAsync(authTokenSet, userId, "");
+
+    return c.json(timelineResponse);
+  } catch (error) {
+    return c.json({
+      error: 'Failed to decrypt ip',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
+
 // app.get('/api/check-by-user-inner-asdafdasdfadsfa', ShadowBanCheckController.checkByUserInner);
 
 app.get('/api/create-transaction-id', async (c: Context) => {

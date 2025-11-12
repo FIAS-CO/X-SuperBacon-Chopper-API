@@ -681,7 +681,7 @@ function getPinnedTweet(response: TimelineApiUtilsResponse<TweetApiUtilsData>): 
 function getNormalTweets(timelineResponse: TimelineApiUtilsResponse<TweetApiUtilsData>, containRepost: boolean): TweetInfo[] {
     const tweetInfos: TweetInfo[] = [];
     // 広告を省いたリスト作成
-    const tweets = timelineResponse.data.filter(item => item.promotedMetadata !== null);
+    const tweets = timelineResponse.data.filter(item => item.promotedMetadata === undefined);
     console.log(`Fetched ${tweets.length} tweets from timeline.`);
 
     tweets.forEach(tweetData => {
